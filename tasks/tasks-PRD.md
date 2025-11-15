@@ -27,7 +27,6 @@
   - Task 4.0: ✅ Complete (5/6 sub-tasks - export pending)
 - **Phase 2:** 15% (1/6 parent tasks started)
   - Task 6.0: 🔄 62% (8/13 sub-tasks - API complete, frontend pending)
-- **Phase 2:** 0% (0/6 parent tasks)
 - **Phase 3:** 0% (0/5 parent tasks)
 - **Phase 4:** 0% (0/4 parent tasks)
 - **Phase 5:** 0% (0/3 parent tasks)
