@@ -39,14 +39,14 @@ async def health_check():
 
 
 # API routers
-from app.api.v1 import auth, audit, companies
+from app.api.v1 import auth, audit, companies, risk_scoring
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])
+app.include_router(risk_scoring.router, prefix="/api/v1/risk", tags=["risk-scoring"])
 
 # TODO: Add remaining API routers
-# from app.api.v1 import reports, risk_scoring
+# from app.api.v1 import reports
 # app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
-# app.include_router(risk_scoring.router, prefix="/api/v1/risk", tags=["risk-scoring"])
 
