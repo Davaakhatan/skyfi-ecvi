@@ -104,6 +104,70 @@ Clear separation between backend, frontend, ai, and infrastructure makes the pro
 
 ---
 
+### Risk Scoring Implementation
+**Date:** 2025-01-XX  
+**Context:** Implementing risk scoring algorithm for company verification
+
+**Learning:**
+Weighted risk scoring with multiple factors provides more accurate assessment than single-factor approaches
+
+**Details:**
+- Breaking risk into components (DNS, registration, contact, domain, cross-source) allows fine-tuning
+- Weighted combination (25% DNS, 25% registration, 20% contact, 15% domain, 15% cross-source) balances factors
+- Providing breakdown helps users understand risk scores
+- Category classification (Low/Medium/High) makes scores actionable
+
+**Action:**
+- Implemented RiskCalculator with 5 risk components
+- Created weighted scoring algorithm
+- Added risk breakdown in API responses
+- Integrated with verification results model
+
+---
+
+### API Development Best Practices
+**Date:** 2025-01-XX  
+**Context:** Building RESTful APIs for company management
+
+**Learning:**
+Comprehensive filtering and pagination from the start saves refactoring later
+
+**Details:**
+- Advanced filtering (date ranges, risk scores, status, reviewers) enables powerful queries
+- Pagination with total count provides better UX
+- Sorting by multiple fields increases flexibility
+- Search across multiple fields improves discoverability
+- All operations should be audited for compliance
+
+**Action:**
+- Implemented comprehensive filtering in company list API
+- Added pagination with skip/limit and total count
+- Implemented multi-field sorting
+- Integrated audit logging for all operations
+
+---
+
+### Service Layer Architecture
+**Date:** 2025-01-XX  
+**Context:** Creating business logic services
+
+**Learning:**
+Separating business logic into service classes makes code testable and reusable
+
+**Details:**
+- Services can be used by both API endpoints and background tasks
+- Service classes are easier to unit test than API endpoints
+- Clear separation between API layer and business logic
+- Services can be composed to build complex workflows
+
+**Action:**
+- Created RiskCalculator service class
+- Created DNSVerificationService class
+- Services are independent and testable
+- Ready for integration into verification orchestration
+
+---
+
 ## To Be Updated
 
 As the project progresses, document:

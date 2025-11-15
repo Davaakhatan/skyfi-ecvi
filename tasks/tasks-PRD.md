@@ -16,8 +16,9 @@
 - ✅ **4.0 Audit Logging System** - Complete (export functionality pending)
 - ⏳ **5.0 Basic UI Framework Setup** - Not Started
 
-### Phase 2: Core Features (Early Start - 30% Complete)
+### Phase 2: Core Features (Early Start - 35% Complete)
 - 🔄 **6.0 Company Analysis List Implementation** - 62% Complete (API done, frontend pending)
+- 🔄 **8.0 Company Verification Service** - 11% Complete (DNS verification done)
 - 🔄 **9.0 Risk Scoring Algorithm** - 82% Complete (algorithm done, tests pending)
 
 ### Overall Progress
@@ -26,8 +27,9 @@
   - Task 2.0: 🔄 75% (6/8 sub-tasks)
   - Task 3.0: ✅ Complete (7/9 sub-tasks - OAuth/SSO are future enhancements)
   - Task 4.0: ✅ Complete (5/6 sub-tasks - export pending)
-- **Phase 2:** 30% (2/6 parent tasks started)
+- **Phase 2:** 35% (3/6 parent tasks started)
   - Task 6.0: 🔄 62% (8/13 sub-tasks - API complete, frontend pending)
+  - Task 8.0: 🔄 11% (1/11 sub-tasks - DNS verification done)
   - Task 9.0: 🔄 82% (9/11 sub-tasks - algorithm complete, tests pending)
 - **Phase 3:** 0% (0/5 parent tasks)
 - **Phase 4:** 0% (0/4 parent tasks)
