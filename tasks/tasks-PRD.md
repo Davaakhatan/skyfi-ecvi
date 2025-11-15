@@ -16,8 +16,9 @@
 - ✅ **4.0 Audit Logging System** - Complete (export functionality pending)
 - ⏳ **5.0 Basic UI Framework Setup** - Not Started
 
-### Phase 2: Core Features (Early Start - 15% Complete)
+### Phase 2: Core Features (Early Start - 30% Complete)
 - 🔄 **6.0 Company Analysis List Implementation** - 62% Complete (API done, frontend pending)
+- 🔄 **9.0 Risk Scoring Algorithm** - 82% Complete (algorithm done, tests pending)
 
 ### Overall Progress
 - **Phase 1:** 60% (3/5 parent tasks complete, 1 in progress)
@@ -25,8 +26,9 @@
   - Task 2.0: 🔄 75% (6/8 sub-tasks)
   - Task 3.0: ✅ Complete (7/9 sub-tasks - OAuth/SSO are future enhancements)
   - Task 4.0: ✅ Complete (5/6 sub-tasks - export pending)
-- **Phase 2:** 15% (1/6 parent tasks started)
+- **Phase 2:** 30% (2/6 parent tasks started)
   - Task 6.0: 🔄 62% (8/13 sub-tasks - API complete, frontend pending)
+  - Task 9.0: 🔄 82% (9/11 sub-tasks - algorithm complete, tests pending)
 - **Phase 3:** 0% (0/5 parent tasks)
 - **Phase 4:** 0% (0/4 parent tasks)
 - **Phase 5:** 0% (0/3 parent tasks)
@@ -57,7 +59,7 @@
 - `backend/app/services/ai_service.py` - AI/ML service integration (LangChain, Agentic System)
 - `backend/app/services/data_collection.py` - Data collection from external sources
 - ✅ `backend/app/services/risk_calculator.py` - Risk score calculation algorithm
-- ⏳ `backend/app/services/dns_verification.py` - DNS verification logic
+- ✅ `backend/app/services/dns_verification.py` - DNS verification logic
 - ⏳ `backend/app/services/contact_verification.py` - Contact information validation
 - `backend/app/tasks/analysis_tasks.py` - Celery tasks for async company analysis
 - ✅ `backend/app/utils/validators.py` - Data validation utilities
@@ -210,7 +212,7 @@
 
 - [ ] 8.0 Company Verification Service
   - [ ] 8.1 Create verification orchestration service
-  - [ ] 8.2 Implement DNS verification logic
+  - [x] 8.2 Implement DNS verification logic
   - [ ] 8.3 Implement company registration data verification
   - [ ] 8.4 Implement contact information collection
   - [ ] 8.5 Implement HQ address verification
