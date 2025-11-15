@@ -14,7 +14,12 @@ from app.core.config import settings
 from app.db.database import Base
 
 # Import all models here so Alembic can detect them
-from app.models import Company, User, AuditLog, VerificationResult, CompanyData, Review
+from app.models.company import Company
+from app.models.user import User
+from app.models.audit import AuditLog
+from app.models.verification_result import VerificationResult
+from app.models.company_data import CompanyData
+from app.models.review import Review
 
 # this is the Alembic Config object
 config = context.config

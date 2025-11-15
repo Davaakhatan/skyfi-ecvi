@@ -46,15 +46,18 @@
 - ✅ Risk scoring API endpoints
 - ✅ DNS verification service
 - ✅ Data validation utilities
+- ✅ Verification orchestration service
+- ✅ Verification API endpoints (POST /companies/{id}/verify, GET /companies/{id}/verification)
+- ✅ Initial Alembic migration generated
 
 ---
 
 ## In Progress
 
-- 🔄 Generate initial Alembic migration
 - 🔄 Frontend React project setup
-- 🔄 Verification orchestration service
 - 🔄 AI/ML integration (LangChain, Agentic System)
+- 🔄 Contact verification service
+- 🔄 Registration data verification
 
 ---
 
@@ -73,7 +76,7 @@
 - [x] Database schema design and models
 - [x] Authentication and authorization setup
 - [x] Audit logging system
-- [ ] Generate initial Alembic migration
+- [x] Generate initial Alembic migration
 - [ ] Basic UI framework setup
 
 ### Phase 2: Core Features (Weeks 5-10) - Early Start
@@ -81,8 +84,11 @@
 - [x] Risk scoring algorithm
 - [x] Risk scoring API
 - [x] DNS verification service
+- [x] Verification orchestration service
+- [x] Verification API endpoints
 - [ ] AI data collection service
-- [ ] Verification orchestration service
+- [ ] Contact verification service
+- [ ] Registration data verification
 - [ ] Report generation service
 
 ---
@@ -91,8 +97,8 @@
 
 | Milestone | Target Date | Status |
 |-----------|-------------|--------|
-| Phase 1 Complete | Week 4 | In Progress (60%) |
-| Phase 2 Complete | Week 10 | In Progress (30% - early start) |
+| Phase 1 Complete | Week 4 | In Progress (75%) |
+| Phase 2 Complete | Week 10 | In Progress (45% - early start) |
 | Phase 3 Complete | Week 14 | Not Started |
 | Phase 4 Complete | Week 16 | Not Started |
 | Launch | Week 17 | Not Started |

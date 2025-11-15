@@ -2,6 +2,7 @@
 
 from pydantic_settings import BaseSettings
 from typing import List
+import json
 
 
 class Settings(BaseSettings):
@@ -21,8 +22,20 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS - can be comma-separated string or JSON array
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS_ORIGINS into a list"""
+        if not self.CORS_ORIGINS:
+            return []
+        # Try JSON first
+        try:
+            return json.loads(self.CORS_ORIGINS)
+        except (json.JSONDecodeError, TypeError):
+            # Fall back to comma-separated string
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

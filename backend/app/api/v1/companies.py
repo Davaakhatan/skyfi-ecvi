@@ -15,6 +15,7 @@ from app.models.review import Review, ReviewStatus
 from app.models.user import User
 from app.core.auth import get_current_active_user
 from app.core.audit import log_audit_event
+from app.services.verification_service import VerificationService
 from fastapi import Request
 
 router = APIRouter()
@@ -48,6 +49,21 @@ class CompanyListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class VerificationResponse(BaseModel):
+    """Verification result response model"""
+    id: str
+    company_id: str
+    risk_score: int
+    risk_category: RiskCategory
+    verification_status: VerificationStatus
+    analysis_started_at: Optional[datetime]
+    analysis_completed_at: Optional[datetime]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 @router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
@@ -274,4 +290,66 @@ async def delete_company(
     db.commit()
     
     return None
+
+
+@router.post("/{company_id}/verify", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
+async def verify_company(
+    company_id: UUID,
+    timeout_hours: float = Query(2.0, ge=0.1, le=24.0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    request: Request = None
+):
+    """Initiate company verification"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    # Log audit event
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action="VERIFY_COMPANY",
+        resource_type="company",
+        resource_id=company.id,
+        details={"legal_name": company.legal_name, "timeout_hours": timeout_hours},
+        request=request
+    )
+    
+    # Start verification
+    verification_service = VerificationService(db)
+    verification_result = await verification_service.verify_company(company_id, timeout_hours)
+    
+    return verification_result
+
+
+@router.get("/{company_id}/verification", response_model=VerificationResponse)
+async def get_verification_result(
+    company_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get latest verification result for a company"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    verification_service = VerificationService(db)
+    verification_result = verification_service.get_verification_result(company_id)
+    
+    if not verification_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No verification result found for this company"
+        )
+    
+    return verification_result
 
