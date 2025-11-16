@@ -49,6 +49,8 @@
 - ✅ Verification orchestration service
 - ✅ Verification API endpoints (POST /companies/{id}/verify, GET /companies/{id}/verification)
 - ✅ Initial Alembic migration generated
+- ✅ Contact verification service (email format, DNS, MX records; phone format validation)
+- ✅ Registration verification service (format validation, cross-referencing structure)
 
 ---
 
@@ -56,8 +58,8 @@
 
 - 🔄 Frontend React project setup
 - 🔄 AI/ML integration (LangChain, Agentic System)
-- 🔄 Contact verification service
-- 🔄 Registration data verification
+- 🔄 External API integration for contact verification (email existence, phone carrier lookup)
+- 🔄 External API integration for registration data (Companies House, SEC EDGAR, etc.)
 
 ---
 
@@ -86,9 +88,11 @@
 - [x] DNS verification service
 - [x] Verification orchestration service
 - [x] Verification API endpoints
+- [x] Contact verification service (basic validation)
+- [x] Registration data verification (basic validation)
 - [ ] AI data collection service
-- [ ] Contact verification service
-- [ ] Registration data verification
+- [ ] External API integration for contact verification
+- [ ] External API integration for registration data
 - [ ] Report generation service
 
 ---
@@ -98,7 +102,7 @@
 | Milestone | Target Date | Status |
 |-----------|-------------|--------|
 | Phase 1 Complete | Week 4 | In Progress (75%) |
-| Phase 2 Complete | Week 10 | In Progress (45% - early start) |
+| Phase 2 Complete | Week 10 | In Progress (50% - early start) |
 | Phase 3 Complete | Week 14 | Not Started |
 | Phase 4 Complete | Week 16 | Not Started |
 | Launch | Week 17 | Not Started |

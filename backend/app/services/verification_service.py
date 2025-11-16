@@ -10,6 +10,8 @@ from app.models.verification_result import VerificationResult, VerificationStatu
 from app.models.company_data import CompanyData, DataType
 from app.services.dns_verification import DNSVerificationService
 from app.services.risk_calculator import RiskCalculator
+from app.services.contact_verification import ContactVerificationService
+from app.services.registration_verification import RegistrationVerificationService
 from app.utils.validators import validate_email, validate_phone, validate_domain
 
 
@@ -20,6 +22,8 @@ class VerificationService:
         self.db = db
         self.dns_service = DNSVerificationService()
         self.risk_calculator = RiskCalculator()
+        self.contact_service = ContactVerificationService()
+        self.registration_service = RegistrationVerificationService()
     
     async def verify_company(
         self,
@@ -69,15 +73,41 @@ class VerificationService:
             
             # Step 2: Collect and validate contact information
             # TODO: Integrate with AI service for data collection
+            # For now, we'll use basic validation
+            # In the future, contact info will be collected from company data or AI service
             email_valid = False
             phone_valid = False
             email_exists = None
             phone_carrier_valid = None
             
+            # If we have contact info in company data, verify it
+            # TODO: Extract contact info from company_data or AI collection
+            # For now, placeholder values
+            
             # Step 3: Registration data consistency
-            # TODO: Integrate with external APIs for registration data
-            registration_matches = 0
-            total_sources = 0
+            registration_result = self.registration_service.cross_reference_registration_data(
+                legal_name=company.legal_name,
+                registration_number=company.registration_number,
+                jurisdiction=company.jurisdiction,
+                domain=company.domain
+            )
+            registration_matches = registration_result.get("matches", 0)
+            total_sources = registration_result.get("total_sources", 0)
+            
+            # Store registration data
+            if company.registration_number:
+                reg_verify = self.registration_service.verify_registration_number(
+                    company.registration_number, company.jurisdiction
+                )
+                self._store_company_data(
+                    company_id,
+                    DataType.REGISTRATION,
+                    "registration_number",
+                    company.registration_number,
+                    "format_validation",
+                    0.8 if reg_verify["verified"] else 0.3,
+                    reg_verify["verified"]
+                )
             
             # Step 4: Calculate risk score
             risk_result = self.risk_calculator.calculate_overall_risk(

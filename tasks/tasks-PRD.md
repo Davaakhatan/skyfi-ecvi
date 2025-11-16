@@ -16,9 +16,9 @@
 - ✅ **4.0 Audit Logging System** - Complete (export functionality pending)
 - ⏳ **5.0 Basic UI Framework Setup** - Not Started
 
-### Phase 2: Core Features (Early Start - 45% Complete)
+### Phase 2: Core Features (Early Start - 50% Complete)
 - 🔄 **6.0 Company Analysis List Implementation** - 62% Complete (API done, frontend pending)
-- 🔄 **8.0 Company Verification Service** - 45% Complete (orchestration service done, DNS verification done, API endpoints added)
+- 🔄 **8.0 Company Verification Service** - 55% Complete (orchestration service done, DNS verification done, contact verification done, registration verification done, API endpoints added)
 - 🔄 **9.0 Risk Scoring Algorithm** - 82% Complete (algorithm done, tests pending)
 
 ### Overall Progress
@@ -27,9 +27,9 @@
   - Task 2.0: ✅ Complete (8/8 sub-tasks - migration generated)
   - Task 3.0: ✅ Complete (7/9 sub-tasks - OAuth/SSO are future enhancements)
   - Task 4.0: ✅ Complete (5/6 sub-tasks - export pending)
-- **Phase 2:** 45% (3/6 parent tasks started)
+- **Phase 2:** 50% (3/6 parent tasks started)
   - Task 6.0: 🔄 62% (8/13 sub-tasks - API complete, frontend pending)
-  - Task 8.0: 🔄 45% (5/11 sub-tasks - orchestration service, DNS verification, API endpoints done)
+  - Task 8.0: 🔄 55% (7/11 sub-tasks - orchestration service, DNS verification, contact verification, registration verification, API endpoints done)
   - Task 9.0: 🔄 82% (9/11 sub-tasks - algorithm complete, tests pending)
 - **Phase 3:** 0% (0/5 parent tasks)
 - **Phase 4:** 0% (0/4 parent tasks)
@@ -62,7 +62,8 @@
 - `backend/app/services/data_collection.py` - Data collection from external sources
 - ✅ `backend/app/services/risk_calculator.py` - Risk score calculation algorithm
 - ✅ `backend/app/services/dns_verification.py` - DNS verification logic
-- ⏳ `backend/app/services/contact_verification.py` - Contact information validation
+- ✅ `backend/app/services/contact_verification.py` - Contact information validation
+- ✅ `backend/app/services/registration_verification.py` - Registration data verification
 - `backend/app/tasks/analysis_tasks.py` - Celery tasks for async company analysis
 - ✅ `backend/app/utils/validators.py` - Data validation utilities
 - `backend/app/utils/exporters.py` - Report export utilities (PDF, CSV, JSON)
@@ -216,8 +217,8 @@
 - [ ] 8.0 Company Verification Service
   - [x] 8.1 Create verification orchestration service
   - [x] 8.2 Implement DNS verification logic
-  - [ ] 8.3 Implement company registration data verification
-  - [ ] 8.4 Implement contact information collection
+  - [x] 8.3 Implement company registration data verification (basic structure done, external API integration pending)
+  - [x] 8.4 Implement contact information collection (basic validation done, external API integration pending)
   - [ ] 8.5 Implement HQ address verification
   - [ ] 8.6 Create data discrepancy detection
   - [ ] 8.7 Implement confidence scoring for verification results
