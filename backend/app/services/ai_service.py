@@ -99,16 +99,97 @@ class CompanyResearcherAgent:
         return tools
     
     def _web_search(self, query: str) -> str:
-        """Web search tool (placeholder - integrate with actual search API)"""
-        # TODO: Integrate with actual web search API (e.g., SerpAPI, Google Custom Search)
-        logger.info(f"Web search query: {query}")
-        return f"Web search results for: {query} (placeholder - integrate with search API)"
+        """Web search tool with web scraping support"""
+        try:
+            from app.services.web_scraper import WebScraper
+            scraper = WebScraper()
+            
+            # For now, use web scraping to search
+            # TODO: Integrate with actual search API (SerpAPI, Google Custom Search) for better results
+            logger.info(f"Web search query: {query}")
+            
+            # Try to construct a search URL (this is a placeholder)
+            # In production, use a proper search API
+            search_results = scraper.search_company_info(query)
+            
+            import json
+            return json.dumps({
+                "query": query,
+                "results": search_results,
+                "note": "Using web scraping. Consider integrating with search APIs for better results."
+            })
+        except Exception as e:
+            logger.error(f"Web search failed: {e}")
+            import json
+            return json.dumps({"error": str(e), "query": query})
     
     def _api_lookup(self, input_str: str) -> str:
-        """API lookup tool (placeholder - integrate with company registry APIs)"""
-        # TODO: Integrate with company registry APIs (Companies House, SEC EDGAR, etc.)
-        logger.info(f"API lookup: {input_str}")
-        return f"API lookup results for: {input_str} (placeholder - integrate with registry APIs)"
+        """API lookup tool for company registry APIs"""
+        try:
+            from app.services.data_collection import DataCollectionService
+            import json
+            
+            # Parse input (expects JSON string with company info)
+            try:
+                params = json.loads(input_str) if input_str.startswith("{") else {"query": input_str}
+            except json.JSONDecodeError:
+                params = {"query": input_str}
+            
+            company_name = params.get("company_name") or params.get("query", "")
+            registration_number = params.get("registration_number")
+            jurisdiction = params.get("jurisdiction")
+            
+            # Use DataCollectionService for API lookups
+            collection_service = DataCollectionService()
+            
+            # Configure sources based on jurisdiction
+            sources = []
+            
+            # UK Companies House
+            if jurisdiction and jurisdiction.upper() in ["GB", "UK", "GBR"]:
+                sources.append({
+                    "name": "companies_house_uk",
+                    "type": "api",
+                    "endpoint": "https://api.company-information.service.gov.uk/company",
+                    "params": {
+                        "q": company_name
+                    },
+                    "headers": {
+                        "Authorization": f"Basic {settings.COMPANY_REGISTRY_API_KEY}" if settings.COMPANY_REGISTRY_API_KEY else None
+                    },
+                    "use_cache": True
+                })
+            
+            # US SEC EDGAR
+            if jurisdiction and jurisdiction.upper() in ["US", "USA"]:
+                sources.append({
+                    "name": "sec_edgar",
+                    "type": "api",
+                    "endpoint": "https://www.sec.gov/cgi-bin/browse-edgar",
+                    "params": {
+                        "company": company_name,
+                        "action": "getcompany"
+                    },
+                    "headers": {
+                        "User-Agent": "ECVI-Bot/1.0"
+                    },
+                    "use_cache": True
+                })
+            
+            if sources:
+                result = collection_service.collect_from_multiple_sources(sources, company_name)
+                return json.dumps(result)
+            else:
+                return json.dumps({
+                    "success": False,
+                    "error": f"No API sources configured for jurisdiction: {jurisdiction}",
+                    "input": input_str
+                })
+                
+        except Exception as e:
+            logger.error(f"API lookup failed: {e}")
+            import json
+            return json.dumps({"error": str(e), "input": input_str})
     
     def _extract_data(self, text: str) -> str:
         """Extract structured data from text using LLM"""
@@ -241,9 +322,28 @@ class DataVerifierAgent:
     
     def _dns_verify(self, domain: str) -> str:
         """DNS verification tool"""
-        # TODO: Integrate with DNS verification service
-        logger.info(f"DNS verification for: {domain}")
-        return f"DNS verification results for: {domain} (placeholder)"
+        try:
+            from app.services.dns_verification import DNSVerificationService
+            dns_service = DNSVerificationService()
+            
+            # Perform DNS verification
+            dns_result = dns_service.verify_domain(domain)
+            
+            # Format results as JSON string
+            import json
+            return json.dumps({
+                "domain": domain,
+                "verified": dns_result.get("verified", False),
+                "a_records": dns_result.get("a_records", []),
+                "mx_records": dns_result.get("mx_records", []),
+                "ns_records": dns_result.get("ns_records", []),
+                "domain_age_days": dns_result.get("domain_age_days"),
+                "ssl_valid": dns_result.get("ssl_valid", False),
+                "domain_matches_company": dns_result.get("domain_matches_company", False)
+            })
+        except Exception as e:
+            logger.error(f"DNS verification failed: {e}")
+            return json.dumps({"error": str(e), "domain": domain})
     
     def _validate_format(self, input_str: str) -> str:
         """Validate data format"""
