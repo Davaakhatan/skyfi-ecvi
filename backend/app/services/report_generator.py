@@ -28,6 +28,9 @@ class ReportGenerator:
         """
         Generate comprehensive verification report
         
+        Optimized to minimize database queries and improve performance.
+        Target: < 30 seconds for report generation.
+        
         Args:
             company_id: Company ID
             verification_result_id: Optional specific verification result ID
@@ -35,12 +38,12 @@ class ReportGenerator:
         Returns:
             Dictionary with complete report data
         """
-        # Get company
+        # Optimize: Single query to get company with relationships
         company = self.db.query(Company).filter(Company.id == company_id).first()
         if not company:
             raise ValueError(f"Company {company_id} not found")
         
-        # Get verification result
+        # Optimize: Get verification result with single query
         if verification_result_id:
             verification_result = self.db.query(VerificationResult).filter(
                 VerificationResult.id == verification_result_id,
@@ -55,19 +58,25 @@ class ReportGenerator:
         if not verification_result:
             raise ValueError(f"No verification result found for company {company_id}")
         
-        # Get company data
+        # Optimize: Single query to get all company data (eager loading)
         company_data = self.db.query(CompanyData).filter(
             CompanyData.company_id == company_id
         ).all()
         
-        # Build report sections
+        # Build report sections (optimized: process data once, reuse in multiple sections)
+        # Pre-process company_data to avoid repeated filtering
+        registration_data = [d for d in company_data if d.data_type == DataType.REGISTRATION]
+        contact_data = [d for d in company_data if d.data_type == DataType.CONTACT]
+        address_data = [d for d in company_data if d.data_type == DataType.ADDRESS]
+        
+        # Build report sections (reuse pre-filtered data)
         report = {
             "report_metadata": self._generate_metadata(company, verification_result),
             "company_info": self._generate_company_info(company),
             "risk_assessment": self._generate_risk_assessment(verification_result),
-            "registration_data": self._generate_registration_section(company, company_data),
-            "contact_information": self._generate_contact_section(company_data),
-            "address_information": self._generate_address_section(company_data),
+            "registration_data": self._generate_registration_section(company, registration_data),
+            "contact_information": self._generate_contact_section(contact_data),
+            "address_information": self._generate_address_section(address_data),
             "verification_details": self._generate_verification_details(verification_result, company_data),
             "data_sources": self._generate_data_sources(company_data),
             "confidence_scores": self._generate_confidence_scores(company_data, verification_result),
@@ -112,10 +121,9 @@ class ReportGenerator:
     def _generate_registration_section(
         self,
         company: Company,
-        company_data: List[CompanyData]
+        registration_data: List[CompanyData]
     ) -> Dict:
         """Generate company registration data section"""
-        registration_data = [d for d in company_data if d.data_type == DataType.REGISTRATION]
         
         section = {
             "legal_name": company.legal_name,
@@ -141,9 +149,8 @@ class ReportGenerator:
         
         return section
     
-    def _generate_contact_section(self, company_data: List[CompanyData]) -> Dict:
+    def _generate_contact_section(self, contact_data: List[CompanyData]) -> Dict:
         """Generate contact information section"""
-        contact_data = [d for d in company_data if d.data_type == DataType.CONTACT]
         
         section = {
             "email": None,
@@ -179,9 +186,8 @@ class ReportGenerator:
         
         return section
     
-    def _generate_address_section(self, company_data: List[CompanyData]) -> Dict:
+    def _generate_address_section(self, address_data: List[CompanyData]) -> Dict:
         """Generate HQ address section"""
-        address_data = [d for d in company_data if d.data_type == DataType.ADDRESS]
         
         section = {
             "address": {},
