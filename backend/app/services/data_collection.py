@@ -164,15 +164,44 @@ class DataCollectionService:
         params: Optional[Dict] = None,
         headers: Optional[Dict] = None
     ) -> Dict:
-        """Make HTTP API request"""
-        with httpx.Client(timeout=30.0) as client:
-            response = client.get(
-                endpoint,
-                params=params or {},
-                headers=headers or {}
-            )
-            response.raise_for_status()
-            return response.json()
+        """Make HTTP API request with timeout and error handling"""
+        try:
+            # Validate URL
+            from app.utils.security import validate_url
+            url_valid, url_error = validate_url(endpoint)
+            if not url_valid:
+                raise ValueError(f"Invalid endpoint URL: {url_error}")
+            
+            with httpx.Client(
+                timeout=httpx.Timeout(30.0, connect=10.0),  # 30s total, 10s connect
+                follow_redirects=True,
+                max_redirects=5
+            ) as client:
+                response = client.get(
+                    endpoint,
+                    params=params or {},
+                    headers=headers or {}
+                )
+                response.raise_for_status()
+                
+                # Validate response size (prevent memory issues)
+                content_length = response.headers.get('content-length')
+                if content_length and int(content_length) > 10 * 1024 * 1024:  # 10MB limit
+                    raise ValueError("Response too large (max 10MB)")
+                
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error(f"Request timeout for endpoint: {endpoint}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error {e.response.status_code} for endpoint: {endpoint}")
+            raise
+        except httpx.RequestError as e:
+            logger.error(f"Request error for endpoint {endpoint}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error making API request to {endpoint}: {e}")
+            raise
     
     def collect_from_multiple_sources(
         self,

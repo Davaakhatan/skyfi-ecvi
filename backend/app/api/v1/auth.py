@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
+import re
 
 from app.db.database import get_db
 from app.models.user import User
@@ -12,6 +13,7 @@ from app.core.auth import authenticate_user, get_current_active_user
 from app.core.security import get_password_hash, create_access_token
 from app.core.config import settings
 from app.core.audit import log_audit_event
+from app.utils.security import validate_password_strength
 
 router = APIRouter()
 
@@ -94,6 +96,35 @@ async def register(
             detail="Only administrators can create users"
         )
     
+    # Validate password strength
+    password_valid, password_error = validate_password_strength(user_data.password)
+    if not password_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=password_error
+        )
+    
+    # Validate username format
+    if not user_data.username or len(user_data.username) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username must be at least 3 characters long"
+        )
+    
+    if not re.match(r'^[a-zA-Z0-9_-]+$', user_data.username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username can only contain letters, numbers, underscores, and hyphens"
+        )
+    
+    # Validate role
+    valid_roles = ["admin", "operator", "viewer"]
+    if user_data.role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+        )
+    
     # Check if user already exists
     existing_user = db.query(User).filter(
         (User.email == user_data.email) | (User.username == user_data.username)
@@ -105,16 +136,23 @@ async def register(
         )
     
     # Create new user
-    new_user = User(
-        email=user_data.email,
-        username=user_data.username,
-        password_hash=get_password_hash(user_data.password),
-        role=user_data.role
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        new_user = User(
+            email=user_data.email,
+            username=user_data.username,
+            password_hash=get_password_hash(user_data.password),
+            role=user_data.role
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user"
+        )
     
     # Log audit event
     log_audit_event(

@@ -75,9 +75,45 @@ async def create_company(
     request: Request = None
 ):
     """Create a new company"""
+    # Input validation
+    if not company_data.legal_name or len(company_data.legal_name.strip()) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company legal name must be at least 2 characters long"
+        )
+    
+    if len(company_data.legal_name) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company legal name must be no more than 500 characters"
+        )
+    
+    # Validate domain if provided
+    if company_data.domain:
+        from app.utils.validators import validate_domain
+        domain_valid, domain_error = validate_domain(company_data.domain)
+        if not domain_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid domain: {domain_error}"
+            )
+    
+    # Validate registration number if provided
+    if company_data.registration_number:
+        from app.utils.validators import validate_registration_number
+        reg_valid, reg_error = validate_registration_number(
+            company_data.registration_number,
+            company_data.jurisdiction
+        )
+        if not reg_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid registration number: {reg_error}"
+            )
+    
     # Check if company already exists
     existing_company = db.query(Company).filter(
-        Company.legal_name == company_data.legal_name
+        Company.legal_name == company_data.legal_name.strip()
     ).first()
     
     if existing_company:
@@ -87,16 +123,23 @@ async def create_company(
         )
     
     # Create new company
-    new_company = Company(
-        legal_name=company_data.legal_name,
-        registration_number=company_data.registration_number,
-        jurisdiction=company_data.jurisdiction,
-        domain=company_data.domain
-    )
-    
-    db.add(new_company)
-    db.commit()
-    db.refresh(new_company)
+    try:
+        new_company = Company(
+            legal_name=company_data.legal_name.strip(),
+            registration_number=company_data.registration_number.strip() if company_data.registration_number else None,
+            jurisdiction=company_data.jurisdiction.strip().upper() if company_data.jurisdiction else None,
+            domain=company_data.domain.strip().lower() if company_data.domain else None
+        )
+        
+        db.add(new_company)
+        db.commit()
+        db.refresh(new_company)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create company"
+        )
     
     # Log audit event
     log_audit_event(
@@ -133,13 +176,20 @@ async def get_companies(
     """Get list of companies with filtering and pagination"""
     query = db.query(Company)
     
-    # Search filter
+    # Search filter with input sanitization
     if search:
+        # Sanitize search input to prevent SQL injection (though ORM protects us)
+        search_clean = search.strip()[:200]  # Limit length to 200 chars
+        if len(search_clean) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Search query must be at least 1 character"
+            )
         query = query.filter(
             or_(
-                Company.legal_name.ilike(f"%{search}%"),
-                Company.domain.ilike(f"%{search}%"),
-                Company.registration_number.ilike(f"%{search}%")
+                Company.legal_name.ilike(f"%{search_clean}%"),
+                Company.domain.ilike(f"%{search_clean}%"),
+                Company.registration_number.ilike(f"%{search_clean}%")
             )
         )
     
@@ -237,14 +287,57 @@ async def update_company(
             detail="Company not found"
         )
     
-    # Update fields
-    company.legal_name = company_data.legal_name
-    company.registration_number = company_data.registration_number
-    company.jurisdiction = company_data.jurisdiction
-    company.domain = company_data.domain
+    # Input validation (same as create)
+    if not company_data.legal_name or len(company_data.legal_name.strip()) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company legal name must be at least 2 characters long"
+        )
     
-    db.commit()
-    db.refresh(company)
+    if len(company_data.legal_name) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company legal name must be no more than 500 characters"
+        )
+    
+    # Validate domain if provided
+    if company_data.domain:
+        from app.utils.validators import validate_domain
+        domain_valid, domain_error = validate_domain(company_data.domain)
+        if not domain_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid domain: {domain_error}"
+            )
+    
+    # Validate registration number if provided
+    if company_data.registration_number:
+        from app.utils.validators import validate_registration_number
+        reg_valid, reg_error = validate_registration_number(
+            company_data.registration_number,
+            company_data.jurisdiction
+        )
+        if not reg_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid registration number: {reg_error}"
+            )
+    
+    # Update fields
+    try:
+        company.legal_name = company_data.legal_name.strip()
+        company.registration_number = company_data.registration_number.strip() if company_data.registration_number else None
+        company.jurisdiction = company_data.jurisdiction.strip().upper() if company_data.jurisdiction else None
+        company.domain = company_data.domain.strip().lower() if company_data.domain else None
+        
+        db.commit()
+        db.refresh(company)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update company"
+        )
     
     # Log audit event
     log_audit_event(
@@ -287,8 +380,15 @@ async def delete_company(
         request=request
     )
     
-    db.delete(company)
-    db.commit()
+    try:
+        db.delete(company)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete company"
+        )
     
     return None
 
@@ -327,16 +427,23 @@ async def verify_company(
         task_info = TaskQueueService.start_verification(company_id, timeout_hours)
         
         # Create initial verification result record
-        verification_result = VerificationResult(
-            company_id=company_id,
-            risk_score=0,
-            risk_category=RiskCategory.LOW,
-            verification_status=VerificationStatus.IN_PROGRESS,
-            analysis_started_at=datetime.utcnow()
-        )
-        db.add(verification_result)
-        db.commit()
-        db.refresh(verification_result)
+        try:
+            verification_result = VerificationResult(
+                company_id=company_id,
+                risk_score=0,
+                risk_category=RiskCategory.LOW,
+                verification_status=VerificationStatus.IN_PROGRESS,
+                analysis_started_at=datetime.utcnow()
+            )
+            db.add(verification_result)
+            db.commit()
+            db.refresh(verification_result)
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create verification result"
+            )
         
         # Store task_id in details (we could add a task_id field to VerificationResult in future)
         # For now, return the verification result with status IN_PROGRESS
@@ -460,9 +567,16 @@ async def cancel_verification(
     ).first()
     
     if verification_result:
-        verification_result.verification_status = VerificationStatus.FAILED
-        verification_result.analysis_completed_at = datetime.utcnow()
-        db.commit()
+        try:
+            verification_result.verification_status = VerificationStatus.FAILED
+            verification_result.analysis_completed_at = datetime.utcnow()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to cancel verification"
+            )
     
     return {
         "success": True,

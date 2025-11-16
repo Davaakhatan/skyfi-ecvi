@@ -12,13 +12,23 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
-# CORS middleware
+# CORS middleware - production-safe configuration
+cors_origins = settings.cors_origins_list
+if settings.is_production and not cors_origins:
+    # In production, require explicit CORS configuration
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning("CORS_ORIGINS not configured in production. Defaulting to empty list.")
+    cors_origins = []
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=cors_origins if cors_origins else [] if settings.is_production else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"] if settings.is_production else ["*"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"] if settings.is_production else ["*"],
+    expose_headers=["X-Total-Count", "X-Page-Count"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 
@@ -34,8 +44,38 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+    """Health check endpoint with database connectivity check"""
+    from app.db.database import engine
+    from sqlalchemy import text
+    
+    try:
+        # Check database connectivity
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    
+    # Check Redis connectivity (if configured)
+    redis_status = "not_configured"
+    try:
+        from app.core.config import settings
+        import redis
+        if settings.REDIS_URL:
+            redis_client = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+            redis_client.ping()
+            redis_status = "healthy"
+    except Exception:
+        redis_status = "unhealthy"
+    
+    overall_status = "healthy" if db_status == "healthy" else "degraded"
+    
+    return {
+        "status": overall_status,
+        "database": db_status,
+        "redis": redis_status,
+        "version": settings.APP_VERSION
+    }
 
 
 # API routers

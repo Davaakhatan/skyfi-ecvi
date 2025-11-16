@@ -85,24 +85,31 @@ def verify_company_task(self, company_id: str, timeout_hours: float = 2.0):
         # Run verification (this is async in the service, but we're in a sync context)
         # Use asyncio.run to execute the async verification
         import asyncio
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
-            # Try to get existing event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, we need to use a different approach
-                # For Celery tasks, we typically don't have a running loop
-                result = asyncio.run(
-                    verification_service.verify_company(company_uuid, timeout_hours)
-                )
-            else:
-                result = loop.run_until_complete(
-                    verification_service.verify_company(company_uuid, timeout_hours)
-                )
-        except RuntimeError:
-            # No event loop, create a new one
+            # For Celery tasks, we need to create a new event loop
+            # asyncio.run() creates a new event loop, runs the coroutine, and closes the loop
             result = asyncio.run(
                 verification_service.verify_company(company_uuid, timeout_hours)
             )
+        except RuntimeError as e:
+            # Handle case where event loop already exists (shouldn't happen in Celery)
+            logger.warning(f"Event loop issue: {e}. Attempting alternative approach.")
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(
+                    verification_service.verify_company(company_uuid, timeout_hours)
+                )
+                loop.close()
+            except Exception as loop_error:
+                logger.error(f"Failed to create event loop: {loop_error}")
+                raise
+        except Exception as e:
+            logger.error(f"Error running verification: {e}")
+            raise
         
         return str(result.id)
         

@@ -5,6 +5,7 @@ import csv
 import io
 from typing import Dict, Any
 from datetime import datetime
+from app.utils.security import sanitize_html
 
 
 class ReportExporter:
@@ -218,18 +219,18 @@ SUMMARY
 <body>
     <div class="header">
         <h1>Company Verification Report</h1>
-        <p><strong>Report ID:</strong> {metadata.get('report_id', 'N/A')}</p>
-        <p><strong>Generated:</strong> {metadata.get('generated_at', 'N/A')}</p>
+        <p><strong>Report ID:</strong> {sanitize_html(metadata.get('report_id', 'N/A'))}</p>
+        <p><strong>Generated:</strong> {sanitize_html(metadata.get('generated_at', 'N/A'))}</p>
     </div>
     
     <div class="section">
         <div class="section-title">Company Information</div>
         <table>
             <tr><th>Field</th><th>Value</th></tr>
-            <tr><td>Legal Name</td><td>{company_info.get('legal_name', 'N/A')}</td></tr>
-            <tr><td>Registration Number</td><td>{company_info.get('registration_number', 'N/A')}</td></tr>
-            <tr><td>Jurisdiction</td><td>{company_info.get('jurisdiction', 'N/A')}</td></tr>
-            <tr><td>Domain</td><td>{company_info.get('domain', 'N/A')}</td></tr>
+            <tr><td>Legal Name</td><td>{sanitize_html(company_info.get('legal_name', 'N/A'))}</td></tr>
+            <tr><td>Registration Number</td><td>{sanitize_html(company_info.get('registration_number', 'N/A'))}</td></tr>
+            <tr><td>Jurisdiction</td><td>{sanitize_html(company_info.get('jurisdiction', 'N/A'))}</td></tr>
+            <tr><td>Domain</td><td>{sanitize_html(company_info.get('domain', 'N/A'))}</td></tr>
         </table>
     </div>
     
@@ -239,12 +240,12 @@ SUMMARY
             <tr><th>Field</th><th>Value</th></tr>
             <tr>
                 <td>Risk Score</td>
-                <td class="risk-{risk.get('risk_category', '').lower() if risk.get('risk_category') else ''}">
-                    {risk.get('risk_score', 'N/A')} ({risk.get('risk_category', 'N/A')})
+                <td class="risk-{sanitize_html(risk.get('risk_category', '').lower() if risk.get('risk_category') else '')}">
+                    {sanitize_html(str(risk.get('risk_score', 'N/A')))} ({sanitize_html(str(risk.get('risk_category', 'N/A')))})
                 </td>
             </tr>
-            <tr><td>Verification Status</td><td>{risk.get('verification_status', 'N/A')}</td></tr>
-            <tr><td>Analysis Completed</td><td>{risk.get('analysis_completed_at', 'N/A')}</td></tr>
+            <tr><td>Verification Status</td><td>{sanitize_html(risk.get('verification_status', 'N/A'))}</td></tr>
+            <tr><td>Analysis Completed</td><td>{sanitize_html(str(risk.get('analysis_completed_at', 'N/A')))}</td></tr>
         </table>
     </div>
     
@@ -258,7 +259,7 @@ SUMMARY
         </table>
         <h3>Key Findings</h3>
         <ul>
-            {''.join(f'<li>{finding}</li>' for finding in summary.get('key_findings', []))}
+            {''.join(f'<li>{sanitize_html(finding)}</li>' for finding in summary.get('key_findings', []))}
         </ul>
     </div>
 </body>

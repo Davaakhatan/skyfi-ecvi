@@ -1,8 +1,13 @@
 """Application configuration"""
 
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List
 import json
+import logging
+import os
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -22,6 +27,19 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    @field_validator('SECRET_KEY')
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Validate secret key strength"""
+        if not v:
+            raise ValueError("SECRET_KEY is required")
+        if len(v) < 32:
+            if os.getenv('ENVIRONMENT', 'production') == 'production':
+                raise ValueError("SECRET_KEY must be at least 32 characters long for production")
+            else:
+                logger.warning("SECRET_KEY is less than 32 characters. This is not recommended for production.")
+        return v
+    
     # CORS - can be comma-separated string or JSON array
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     
@@ -32,10 +50,18 @@ class Settings(BaseSettings):
             return []
         # Try JSON first
         try:
-            return json.loads(self.CORS_ORIGINS)
+            origins = json.loads(self.CORS_ORIGINS)
+            if isinstance(origins, list):
+                return origins
+            return [origins] if origins else []
         except (json.JSONDecodeError, TypeError):
             # Fall back to comma-separated string
             return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+    
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment"""
+        return self.ENVIRONMENT.lower() == "production"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
