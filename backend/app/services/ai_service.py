@@ -5,6 +5,10 @@ from uuid import UUID
 from datetime import datetime
 import logging
 
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
 try:
     from langchain.agents import AgentExecutor, create_openai_tools_agent
     from langchain_openai import ChatOpenAI
@@ -16,10 +20,6 @@ try:
 except ImportError:
     LANGCHAIN_AVAILABLE = False
     logger.warning("LangChain not available - AI features will be disabled")
-
-from app.core.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class LLMClient:
