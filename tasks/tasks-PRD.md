@@ -16,10 +16,10 @@
 - ✅ **4.0 Audit Logging System** - Complete (export functionality pending)
 - ⏳ **5.0 Basic UI Framework Setup** - Not Started
 
-### Phase 2: Core Features (Early Start - 55% Complete)
+### Phase 2: Core Features (Early Start - 60% Complete)
 - 🔄 **6.0 Company Analysis List Implementation** - 62% Complete (API done, frontend pending)
 - ✅ **8.0 Company Verification Service** - 100% Complete (all sub-tasks done: orchestration service, DNS verification, contact verification, registration verification, HQ address verification, discrepancy detection, confidence scoring, Celery tasks, task queue management, status tracking, timeout handling, API endpoints)
-- 🔄 **9.0 Risk Scoring Algorithm** - 82% Complete (algorithm done, tests pending)
+- ✅ **9.0 Risk Scoring Algorithm** - 100% Complete (all sub-tasks done: algorithm, DNS risk, registration consistency, contact validation, domain authenticity, cross-source validation, risk calculation service, category classification, breakdown explanation, historical tracking, validation tests)
 
 ### Overall Progress
 - **Phase 1:** 75% (4/5 parent tasks complete)
@@ -27,10 +27,10 @@
   - Task 2.0: ✅ Complete (8/8 sub-tasks - migration generated)
   - Task 3.0: ✅ Complete (7/9 sub-tasks - OAuth/SSO are future enhancements)
   - Task 4.0: ✅ Complete (5/6 sub-tasks - export pending)
-- **Phase 2:** 55% (3/6 parent tasks started)
+- **Phase 2:** 60% (3/6 parent tasks started, 2 complete)
   - Task 6.0: 🔄 62% (8/13 sub-tasks - API complete, frontend pending)
   - Task 8.0: ✅ 100% (11/11 sub-tasks - all complete)
-  - Task 9.0: 🔄 82% (9/11 sub-tasks - algorithm complete, tests pending)
+  - Task 9.0: ✅ 100% (11/11 sub-tasks - all complete)
 - **Phase 3:** 0% (0/5 parent tasks)
 - **Phase 4:** 0% (0/4 parent tasks)
 - **Phase 5:** 0% (0/3 parent tasks)
@@ -67,8 +67,11 @@
 - ✅ `backend/app/services/discrepancy_detection.py` - Data discrepancy detection service
 - ✅ `backend/app/services/confidence_scoring.py` - Confidence scoring for verification results
 - ✅ `backend/app/services/task_queue.py` - Task queue management service
+- ✅ `backend/app/services/risk_history.py` - Risk score history tracking service
 - ✅ `backend/app/tasks/celery_app.py` - Celery application configuration
 - ✅ `backend/app/tasks/analysis_tasks.py` - Celery tasks for async verification
+- ✅ `backend/tests/test_risk_calculator.py` - Risk calculator unit tests
+- ✅ `backend/tests/conftest.py` - Pytest configuration and fixtures
 - `backend/app/tasks/analysis_tasks.py` - Celery tasks for async company analysis
 - ✅ `backend/app/utils/validators.py` - Data validation utilities
 - `backend/app/utils/exporters.py` - Report export utilities (PDF, CSV, JSON)
@@ -242,8 +245,8 @@
   - [x] 9.7 Create risk score calculation service (0-100 scale)
   - [x] 9.8 Implement risk category classification (Low/Medium/High)
   - [x] 9.9 Create risk score breakdown explanation
-  - [ ] 9.10 Implement historical score tracking
-  - [ ] 9.11 Create risk score validation tests
+  - [x] 9.10 Implement historical score tracking (RiskHistoryService with history, trend, and latest score endpoints)
+  - [x] 9.11 Create risk score validation tests (comprehensive unit tests for RiskCalculator)
 
 - [ ] 10.0 Verification Report Generation
   - [ ] 10.1 Design report data structure

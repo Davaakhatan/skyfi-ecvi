@@ -12,6 +12,7 @@ from app.models.verification_result import VerificationResult, RiskCategory
 from app.core.auth import get_current_active_user
 from app.models.user import User
 from app.services.risk_calculator import RiskCalculator
+from app.services.risk_history import RiskHistoryService
 
 router = APIRouter()
 
@@ -96,4 +97,82 @@ async def get_company_risk_score(
         "risk_category": verification_result.risk_category,
         "breakdown": {}  # TODO: Store breakdown in database or recalculate
     }
+
+
+@router.get("/company/{company_id}/history")
+async def get_company_risk_history(
+    company_id: UUID,
+    limit: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get historical risk scores for a company"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    history = RiskHistoryService.get_risk_history(db, company_id, limit)
+    
+    return {
+        "company_id": str(company_id),
+        "history": history,
+        "total_records": len(history)
+    }
+
+
+@router.get("/company/{company_id}/trend")
+async def get_company_risk_trend(
+    company_id: UUID,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get risk score trend for a company over time"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    if days < 1 or days > 365:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Days must be between 1 and 365"
+        )
+    
+    trend = RiskHistoryService.get_risk_trend(db, company_id, days)
+    
+    return trend
+
+
+@router.get("/company/{company_id}/latest")
+async def get_company_latest_risk_score(
+    company_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get the latest risk score for a company"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    latest = RiskHistoryService.get_latest_risk_score(db, company_id)
+    
+    if not latest:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No verification results found for this company"
+        )
+    
+    return latest
 
