@@ -154,11 +154,36 @@ class RegistrationVerificationService:
         
         result["format_valid"] = True
         
+        # Enhanced validation
+        # Check if all required components are present
+        required_fields = ["address"]
+        optional_fields = ["city", "state", "country", "postal_code"]
+        
+        # Validate postal code format if provided
+        if postal_code:
+            # Basic postal code validation (alphanumeric, common formats)
+            if len(postal_code.strip()) < 3:
+                result["errors"].append("Postal code too short")
+            elif len(postal_code.strip()) > 20:
+                result["errors"].append("Postal code too long")
+        
+        # Validate country code if provided
+        if country:
+            if len(country.strip()) != 2:
+                result["errors"].append("Country code must be 2 characters (ISO 3166-1 alpha-2)")
+        
+        # Calculate completeness score
+        provided_fields = sum(1 for field in [address, city, state, country, postal_code] if field)
+        total_fields = len(required_fields) + len(optional_fields)
+        completeness = provided_fields / total_fields
+        result["completeness_score"] = completeness
+        
         # TODO: Integrate with geocoding API (e.g., Google Maps, Mapbox)
         # TODO: Verify address exists and is valid
         # TODO: Check if address matches company registration records
         
-        result["verified"] = result["format_valid"]
+        # For now, format validation and completeness determine verification
+        result["verified"] = result["format_valid"] and completeness >= 0.6
         
         return result
     
