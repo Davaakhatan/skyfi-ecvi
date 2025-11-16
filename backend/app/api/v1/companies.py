@@ -16,6 +16,7 @@ from app.models.user import User
 from app.core.auth import get_current_active_user
 from app.core.audit import log_audit_event
 from app.services.verification_service import VerificationService
+from app.services.task_queue import TaskQueueService
 from fastapi import Request
 
 router = APIRouter()
@@ -296,11 +297,12 @@ async def delete_company(
 async def verify_company(
     company_id: UUID,
     timeout_hours: float = Query(2.0, ge=0.1, le=24.0),
+    async_mode: bool = Query(False, description="Run verification asynchronously using Celery"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
     request: Request = None
 ):
-    """Initiate company verification"""
+    """Initiate company verification (sync or async)"""
     company = db.query(Company).filter(Company.id == company_id).first()
     
     if not company:
@@ -316,15 +318,36 @@ async def verify_company(
         action="VERIFY_COMPANY",
         resource_type="company",
         resource_id=company.id,
-        details={"legal_name": company.legal_name, "timeout_hours": timeout_hours},
+        details={"legal_name": company.legal_name, "timeout_hours": timeout_hours, "async_mode": async_mode},
         request=request
     )
     
-    # Start verification
-    verification_service = VerificationService(db)
-    verification_result = await verification_service.verify_company(company_id, timeout_hours)
-    
-    return verification_result
+    if async_mode:
+        # Start async verification via Celery
+        task_info = TaskQueueService.start_verification(company_id, timeout_hours)
+        
+        # Create initial verification result record
+        verification_result = VerificationResult(
+            company_id=company_id,
+            risk_score=0,
+            risk_category=RiskCategory.LOW,
+            verification_status=VerificationStatus.IN_PROGRESS,
+            analysis_started_at=datetime.utcnow()
+        )
+        db.add(verification_result)
+        db.commit()
+        db.refresh(verification_result)
+        
+        # Store task_id in details (we could add a task_id field to VerificationResult in future)
+        # For now, return the verification result with status IN_PROGRESS
+        
+        return verification_result
+    else:
+        # Synchronous verification
+        verification_service = VerificationService(db)
+        verification_result = await verification_service.verify_company(company_id, timeout_hours)
+        
+        return verification_result
 
 
 @router.get("/{company_id}/verification", response_model=VerificationResponse)
@@ -352,4 +375,113 @@ async def get_verification_result(
         )
     
     return verification_result
+
+
+@router.get("/{company_id}/verification/status")
+async def get_verification_status(
+    company_id: UUID,
+    task_id: Optional[str] = Query(None, description="Optional Celery task ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get verification status for a company"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    # Get latest verification result
+    verification_result = db.query(VerificationResult).filter(
+        VerificationResult.company_id == company_id
+    ).order_by(VerificationResult.created_at.desc()).first()
+    
+    if not verification_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No verification result found for this company"
+        )
+    
+    response = {
+        "company_id": str(company_id),
+        "verification_status": verification_result.verification_status.value,
+        "risk_score": verification_result.risk_score,
+        "risk_category": verification_result.risk_category.value if verification_result.risk_category else None,
+        "started_at": verification_result.analysis_started_at.isoformat() if verification_result.analysis_started_at else None,
+        "completed_at": verification_result.analysis_completed_at.isoformat() if verification_result.analysis_completed_at else None,
+    }
+    
+    # If task_id provided, get Celery task status
+    if task_id:
+        task_status = TaskQueueService.get_task_status(task_id)
+        response["task_status"] = task_status
+    
+    return response
+
+
+@router.post("/{company_id}/verification/cancel")
+async def cancel_verification(
+    company_id: UUID,
+    task_id: Optional[str] = Query(None, description="Optional Celery task ID to cancel"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    request: Request = None
+):
+    """Cancel an in-progress verification"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    # Log audit event
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action="CANCEL_VERIFICATION",
+        resource_type="company",
+        resource_id=company.id,
+        details={"legal_name": company.legal_name, "task_id": task_id},
+        request=request
+    )
+    
+    # Cancel Celery task if task_id provided
+    if task_id:
+        cancel_result = TaskQueueService.cancel_task(task_id)
+    
+    # Mark verification as failed
+    verification_result = db.query(VerificationResult).filter(
+        VerificationResult.company_id == company_id,
+        VerificationResult.verification_status == VerificationStatus.IN_PROGRESS
+    ).first()
+    
+    if verification_result:
+        verification_result.verification_status = VerificationStatus.FAILED
+        verification_result.analysis_completed_at = datetime.utcnow()
+        db.commit()
+    
+    return {
+        "success": True,
+        "company_id": str(company_id),
+        "message": "Verification cancelled"
+    }
+
+
+@router.get("/queue/stats")
+async def get_queue_stats(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get task queue statistics (admin only)"""
+    # TODO: Add admin role check
+    stats = TaskQueueService.get_queue_stats()
+    worker_stats = TaskQueueService.get_worker_stats()
+    
+    return {
+        "queue": stats,
+        "workers": worker_stats
+    }
 
