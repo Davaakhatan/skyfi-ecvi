@@ -240,7 +240,7 @@
   - [x] 8.10 Create verification status tracking (status endpoint with task status integration)
   - [x] 8.11 Implement timeout handling (2-hour limit configured in Celery task)
 
-- [ ] 9.0 Risk Scoring Algorithm
+- [x] 9.0 Risk Scoring Algorithm
   - [x] 9.1 Design risk scoring algorithm
   - [x] 9.2 Implement DNS verification risk factors
   - [x] 9.3 Implement company registration consistency scoring
@@ -253,7 +253,7 @@
   - [x] 9.10 Implement historical score tracking (RiskHistoryService with history, trend, and latest score endpoints)
   - [x] 9.11 Create risk score validation tests (comprehensive unit tests for RiskCalculator)
 
-- [ ] 10.0 Verification Report Generation
+- [x] 10.0 Verification Report Generation
   - [x] 10.1 Design report data structure (comprehensive report structure with all sections)
   - [x] 10.2 Create report generation service (ReportGenerator with all section generators)
   - [x] 10.3 Implement company registration data section (with verified fields and data points)
