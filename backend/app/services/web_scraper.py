@@ -3,6 +3,7 @@
 from typing import Dict, List, Optional, Any
 import logging
 import time
+import json
 from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
@@ -222,7 +223,6 @@ class WebScraper:
             json_ld_scripts = soup.find_all("script", type="application/ld+json")
             for script in json_ld_scripts:
                 try:
-                    import json
                     data = json.loads(script.string)
                     if isinstance(data, dict) and data.get("@type") == "Organization":
                         extracted_data["company_name"] = data.get("name")

@@ -37,7 +37,11 @@ class DataCollectionService:
         try:
             cached = self.redis_client.get(cache_key)
             if cached:
+                if isinstance(cached, bytes):
+                    cached = cached.decode('utf-8')
                 return json.loads(cached)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning(f"Cache read failed - invalid data format: {e}")
         except Exception as e:
             logger.warning(f"Cache read failed: {e}")
         return None

@@ -155,9 +155,13 @@ class VerificationService:
             
         except Exception as e:
             # Mark as failed
-            verification_result.verification_status = VerificationStatus.FAILED
-            verification_result.analysis_completed_at = datetime.utcnow()
-            self.db.commit()
+            try:
+                verification_result.verification_status = VerificationStatus.FAILED
+                verification_result.analysis_completed_at = datetime.utcnow()
+                self.db.commit()
+            except Exception as commit_error:
+                logger.error(f"Failed to commit verification failure status: {commit_error}")
+                self.db.rollback()
             raise
     
     def _store_company_data(
@@ -171,17 +175,22 @@ class VerificationService:
         verified: bool
     ):
         """Store company data in database"""
-        company_data = CompanyData(
-            company_id=company_id,
-            data_type=data_type,
-            field_name=field_name,
-            field_value=field_value,
-            source=source,
-            confidence_score=confidence_score,
-            verified=verified
-        )
-        self.db.add(company_data)
-        self.db.commit()
+        try:
+            company_data = CompanyData(
+                company_id=company_id,
+                data_type=data_type,
+                field_name=field_name,
+                field_value=field_value,
+                source=source,
+                confidence_score=confidence_score,
+                verified=verified
+            )
+            self.db.add(company_data)
+            self.db.commit()
+        except Exception as e:
+            logger.error(f"Failed to store company data: {e}")
+            self.db.rollback()
+            raise
     
     def get_verification_result(self, company_id: UUID) -> Optional[VerificationResult]:
         """Get latest verification result for a company"""

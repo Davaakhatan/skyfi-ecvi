@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Any
 from uuid import UUID
 from datetime import datetime
 import logging
+import json
 
 from app.core.config import settings
 
@@ -112,7 +113,6 @@ class CompanyResearcherAgent:
             # In production, use a proper search API
             search_results = scraper.search_company_info(query)
             
-            import json
             return json.dumps({
                 "query": query,
                 "results": search_results,
@@ -120,14 +120,12 @@ class CompanyResearcherAgent:
             })
         except Exception as e:
             logger.error(f"Web search failed: {e}")
-            import json
             return json.dumps({"error": str(e), "query": query})
     
     def _api_lookup(self, input_str: str) -> str:
         """API lookup tool for company registry APIs"""
         try:
             from app.services.data_collection import DataCollectionService
-            import json
             
             # Parse input (expects JSON string with company info)
             try:
@@ -188,12 +186,10 @@ class CompanyResearcherAgent:
                 
         except Exception as e:
             logger.error(f"API lookup failed: {e}")
-            import json
             return json.dumps({"error": str(e), "input": input_str})
     
     def _extract_data(self, input_str: str) -> str:
         """Extract structured data from text or HTML using LLM and web scraping"""
-        import json
         
         # Check if input is HTML or plain text
         is_html = "<html" in input_str.lower() or "<body" in input_str.lower()
@@ -357,7 +353,6 @@ class DataVerifierAgent:
             dns_result = dns_service.verify_domain(domain)
             
             # Format results as JSON string
-            import json
             return json.dumps({
                 "domain": domain,
                 "verified": dns_result.get("verified", False),
@@ -427,7 +422,11 @@ class DataVerifierAgent:
                 "verified_data": {}
             }
         
-        query = f"Verify and cross-reference the following company data: {collected_data}"
+        # Convert collected_data to string if it's a dict to avoid serialization issues
+        if isinstance(collected_data, dict):
+            query = f"Verify and cross-reference the following company data: {json.dumps(collected_data, default=str)}"
+        else:
+            query = f"Verify and cross-reference the following company data: {collected_data}"
         
         try:
             result = self.agent.invoke({"input": query})

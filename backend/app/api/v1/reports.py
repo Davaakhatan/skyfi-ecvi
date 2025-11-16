@@ -62,11 +62,14 @@ async def get_verification_report(
     # Export in requested format
     exporter = ReportExporter()
     
+    # Get report ID safely
+    report_id = report_data.get("report_metadata", {}).get("report_id", str(company_id))
+    
     if format.lower() == "json":
         return JSONResponse(
             content=report_data,
             headers={
-                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_data["report_metadata"]["report_id"]}.json"'
+                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_id}.json"'
             }
         )
     
@@ -76,7 +79,7 @@ async def get_verification_report(
             content=csv_content,
             media_type="text/csv",
             headers={
-                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_data["report_metadata"]["report_id"]}.csv"'
+                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_id}.csv"'
             }
         )
     
@@ -86,7 +89,7 @@ async def get_verification_report(
             io.BytesIO(pdf_content),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_data["report_metadata"]["report_id"]}.pdf"'
+                "Content-Disposition": f'attachment; filename="report_{company_id}_{report_id}.pdf"'
             }
         )
     
@@ -96,7 +99,7 @@ async def get_verification_report(
             content=html_content,
             media_type="text/html",
             headers={
-                "Content-Disposition": f'inline; filename="report_{company_id}_{report_data["report_metadata"]["report_id"]}.html"'
+                "Content-Disposition": f'inline; filename="report_{company_id}_{report_id}.html"'
             }
         )
     

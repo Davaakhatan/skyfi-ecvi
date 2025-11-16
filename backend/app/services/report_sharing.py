@@ -140,9 +140,14 @@ class ReportSharingService:
             return None
         
         # Update access statistics
-        shared_report.access_count += 1
-        shared_report.last_accessed_at = datetime.utcnow()
-        db.commit()
+        try:
+            shared_report.access_count += 1
+            shared_report.last_accessed_at = datetime.utcnow()
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update shared report access statistics: {e}")
+            db.rollback()
+            # Still return the report even if statistics update fails
         
         return shared_report
     
@@ -173,8 +178,13 @@ class ReportSharingService:
         # Optional: Check if user has permission to revoke
         # (e.g., created_by == user_id or user is admin)
         
-        shared_report.is_active = False
-        db.commit()
+        try:
+            shared_report.is_active = False
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to revoke shareable link: {e}")
+            db.rollback()
+            return False
         
         return True
     
