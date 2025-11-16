@@ -91,19 +91,24 @@ class ReportSharingService:
             expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
         
         # Create shared report record
-        shared_report = SharedReport(
-            company_id=company_id,
-            verification_result_id=verification_result_id,
-            share_token=share_token,
-            created_by=created_by,
-            expires_at=expires_at,
-            is_active=True,
-            access_count=0
-        )
-        
-        db.add(shared_report)
-        db.commit()
-        db.refresh(shared_report)
+        try:
+            shared_report = SharedReport(
+                company_id=company_id,
+                verification_result_id=verification_result_id,
+                share_token=share_token,
+                created_by=created_by,
+                expires_at=expires_at,
+                is_active=True,
+                access_count=0
+            )
+            
+            db.add(shared_report)
+            db.commit()
+            db.refresh(shared_report)
+        except Exception as e:
+            logger.error(f"Failed to create shareable link: {e}")
+            db.rollback()
+            raise
         
         return {
             "share_token": share_token,
