@@ -72,9 +72,25 @@ class VerificationService:
                 )
             
             # Step 2: Collect and validate contact information
-            # TODO: Integrate with AI service for data collection
-            # For now, we'll use basic validation
-            # In the future, contact info will be collected from company data or AI service
+            # Try to use AI service for data collection if available
+            ai_collected_data = None
+            try:
+                from app.services.ai_service import AIOrchestrator
+                ai_orchestrator = AIOrchestrator()
+                if ai_orchestrator.is_available():
+                    ai_result = ai_orchestrator.collect_company_data(
+                        legal_name=company.legal_name,
+                        registration_number=company.registration_number,
+                        domain=company.domain,
+                        jurisdiction=company.jurisdiction
+                    )
+                    if ai_result.get("success"):
+                        ai_collected_data = ai_result.get("collected_data", {})
+                        logger.info(f"AI data collection successful for company {company_id}")
+            except Exception as e:
+                logger.warning(f"AI data collection failed, falling back to basic validation: {e}")
+            
+            # Use AI collected data if available, otherwise use basic validation
             email_valid = False
             phone_valid = False
             email_exists = None
