@@ -191,21 +191,48 @@ class CompanyResearcherAgent:
             import json
             return json.dumps({"error": str(e), "input": input_str})
     
-    def _extract_data(self, text: str) -> str:
-        """Extract structured data from text using LLM"""
+    def _extract_data(self, input_str: str) -> str:
+        """Extract structured data from text or HTML using LLM and web scraping"""
+        import json
+        
+        # Check if input is HTML or plain text
+        is_html = "<html" in input_str.lower() or "<body" in input_str.lower()
+        
+        if is_html:
+            # Use web scraper for HTML extraction
+            try:
+                from app.services.web_scraper import WebScraper
+                scraper = WebScraper()
+                extraction_result = scraper.extract_company_data(input_str)
+                
+                if extraction_result.get("success"):
+                    return json.dumps(extraction_result.get("extracted_data", {}))
+            except Exception as e:
+                logger.warning(f"Web scraper extraction failed, falling back to LLM: {e}")
+        
+        # Use LLM for text extraction
         if not self.llm_client.is_available():
-            return "LLM not available for data extraction"
+            return json.dumps({"error": "LLM not available for data extraction"})
         
         prompt = f"""Extract structured company information from the following text.
         Return a JSON object with fields: legal_name, registration_number, jurisdiction, 
         domain, address, email, phone, website.
         
-        Text: {text}
+        Text: {input_str[:2000]}  # Limit text length
         
         Return only valid JSON, no additional text."""
         
         result = self.llm_client.invoke(prompt)
-        return result or "Failed to extract data"
+        if result:
+            try:
+                # Try to parse as JSON to validate
+                json.loads(result)
+                return result
+            except json.JSONDecodeError:
+                # If not valid JSON, wrap it
+                return json.dumps({"extracted_text": result})
+        
+        return json.dumps({"error": "Failed to extract data"})
     
     def _create_agent(self) -> Optional[AgentExecutor]:
         """Create the researcher agent"""
