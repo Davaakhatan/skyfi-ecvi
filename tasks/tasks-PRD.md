@@ -162,6 +162,7 @@
   - [x] 2.6 Design and implement verification results table schema
   - [x] 2.6.1 Design and implement company data table schema
   - [x] 2.6.2 Design and implement review table schema
+  - [x] 2.6.3 Design and implement shared_reports table schema (for shareable report links)
   - [ ] 2.7 Create indexes for performance optimization
   - [x] 2.8 Set up database connection pooling
 

@@ -20,6 +20,7 @@ from app.models.audit import AuditLog
 from app.models.verification_result import VerificationResult
 from app.models.company_data import CompanyData
 from app.models.review import Review
+from app.services.report_sharing import SharedReport
 
 # this is the Alembic Config object
 config = context.config
