@@ -221,12 +221,38 @@ Tests should be run automatically in CI/CD pipeline:
 - **Frontend:** Target 70%+ code coverage
 - **Critical Paths:** 100% coverage for authentication, payment, and data processing
 
+## Security Tests
+
+Security tests are located in:
+- `test_security.py` - Security utility function tests (password hashing, token creation, password strength validation)
+- `test_security_audit.py` - Comprehensive security audit tests (authentication, input validation, API security, data security, CORS)
+
+### Running Security Tests
+
+```bash
+cd backend
+pytest tests/test_security.py tests/test_security_audit.py -v
+```
+
+## Performance Tests
+
+Performance tests are located in:
+- `test_performance.py` - API endpoint performance tests, database query performance, caching tests, benchmarks
+
+### Running Performance Tests
+
+```bash
+cd backend
+pytest tests/test_performance.py -v
+pytest tests/test_performance.py --benchmark-only  # For benchmarks
+```
+
 ## Future Test Enhancements
 
 - [ ] E2E tests with Playwright/Cypress
-- [ ] Performance tests (load testing, stress testing)
-- [ ] Security tests (penetration testing, vulnerability scanning)
 - [ ] AI/ML service integration tests (with LLM mocking)
 - [ ] Visual regression tests
 - [ ] Accessibility tests
+- [ ] Penetration testing (external security firm)
+- [ ] Automated vulnerability scanning
 

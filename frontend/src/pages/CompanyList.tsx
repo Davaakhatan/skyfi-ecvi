@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import RiskScoreBadge from '../components/RiskScoreBadge'
 import ReviewStatusBadge from '../components/ReviewStatusBadge'
 import CreateCompanyModal from '../components/CreateCompanyModal'
-import type { CompanyWithVerification, CompanyListResponse, CompanyListParams, Company, CompanyWithReview } from '../types/api'
+import type { CompanyWithVerification, CompanyListResponse, CompanyListParams, Company } from '../types/api'
 
 export default function CompanyList() {
   const [companies, setCompanies] = useState<CompanyWithVerification[]>([])

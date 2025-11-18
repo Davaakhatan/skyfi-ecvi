@@ -5,7 +5,6 @@ import { toast } from '../utils/toast'
 import { format } from 'date-fns'
 import type { DataCorrection } from '../types/api'
 import { useAuthStore } from '../store/authStore'
-import clsx from 'clsx'
 
 interface CorrectionApprovalPanelProps {
   companyId: string
@@ -70,8 +69,8 @@ export default function CorrectionApprovalPanel({
     }
   }
 
-  // Check if user has admin/compliance role
-  const canApprove = user?.role === 'admin' || user?.role === 'compliance'
+  // Check if user has admin role
+  const canApprove = user?.role === 'admin'
 
   if (!canApprove) {
     return null

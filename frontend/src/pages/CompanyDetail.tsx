@@ -43,7 +43,7 @@ export default function CompanyDetail() {
   const [verifying, setVerifying] = useState(false)
   const [loadingReport, setLoadingReport] = useState(false)
   const [wasReTriggered, setWasReTriggered] = useState(false)
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const previousStatusRef = useRef<string | null>(null)
   const { addNotification } = useNotificationStore()
 

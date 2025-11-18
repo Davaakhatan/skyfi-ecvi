@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, Edit2, AlertCircle } from 'lucide-react'
 import api from '../services/api'
 import { toast } from '../utils/toast'
-import type { DataCorrection, CorrectionCreate, Company } from '../types/api'
+import type { CorrectionCreate, Company } from '../types/api'
 import { useAuthStore } from '../store/authStore'
 
 interface DataCorrectionModalProps {

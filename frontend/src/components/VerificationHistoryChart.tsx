@@ -156,11 +156,16 @@ export default function VerificationHistoryChart({ history }: VerificationHistor
                 return null
               }}
             />
-            <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]}>
-              {categoryCounts.map((entry, index) => (
-                <Bar.Cell key={index} fill={entry.color} />
-              ))}
-            </Bar>
+            <Bar 
+              dataKey="count" 
+              name="Count" 
+              radius={[4, 4, 0, 0]}
+              shape={(props: any) => {
+                const { payload, x, y, width, height } = props
+                const color = categoryCounts.find(c => c.category === payload.category)?.color || '#8884d8'
+                return <rect x={x} y={y} width={width} height={height} fill={color} rx={4} />
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -188,11 +193,16 @@ export default function VerificationHistoryChart({ history }: VerificationHistor
               label={{ value: 'Risk Score', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="riskScore" name="Risk Score" radius={[4, 4, 0, 0]}>
-              {chartData.map((entry, index) => (
-                <Bar.Cell key={`cell-${index}`} fill={entry.riskColor} />
-              ))}
-            </Bar>
+            <Bar 
+              dataKey="riskScore" 
+              name="Risk Score" 
+              radius={[4, 4, 0, 0]}
+              shape={(props: any) => {
+                const { payload, x, y, width, height } = props
+                const color = payload.riskColor || '#8884d8'
+                return <rect x={x} y={y} width={width} height={height} fill={color} rx={4} />
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
