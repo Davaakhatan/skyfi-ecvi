@@ -68,6 +68,75 @@ export interface CompanyListParams {
   sort_order?: 'asc' | 'desc'
 }
 
+export type CorrectionStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export interface DataCorrection {
+  id: string
+  company_id: string
+  company_data_id: string | null
+  field_name: string
+  field_type: string
+  old_value: string | null
+  new_value: string
+  correction_reason: string | null
+  status: CorrectionStatus
+  version: string
+  corrected_by: string
+  corrector_name: string
+  approved_by: string | null
+  approver_name: string | null
+  approved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CorrectionCreate {
+  field_name: string
+  field_type: string
+  new_value: string
+  correction_reason?: string | null
+  company_data_id?: string | null
+  metadata?: Record<string, any> | null
+}
+
+export type ContactType = 'EMAIL' | 'PHONE' | 'NAME'
+export type ContactVerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'PARTIAL'
+
+export interface ContactVerificationResult {
+  id: string
+  company_id: string
+  verification_result_id: string | null
+  contact_type: ContactType
+  contact_value: string
+  country_code: string | null
+  format_valid: boolean
+  domain_exists: boolean | null
+  mx_record_exists: boolean | null
+  email_exists: boolean | null
+  carrier_valid: boolean | null
+  carrier_name: string | null
+  line_type: string | null
+  name_verified: boolean | null
+  public_records_match: boolean | null
+  social_profiles_match: boolean | null
+  status: ContactVerificationStatus
+  confidence_score: number | null
+  risk_score: number | null
+  verification_details: Record<string, any> | null
+  errors: string[] | null
+  sources_checked: string[] | null
+  verified_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ContactVerificationRequest {
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  country_code?: string | null
+}
+
 export type ReviewStatus = 'PENDING' | 'REVIEWED' | 'FLAGGED'
 
 export interface Review {

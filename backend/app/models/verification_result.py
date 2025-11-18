@@ -40,6 +40,7 @@ class VerificationResult(Base):
     
     # Relationships
     company = relationship("Company", back_populates="verification_results")
+    contact_verifications = relationship("ContactVerificationResult", back_populates="verification_result", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<VerificationResult(id={self.id}, company_id={self.company_id}, risk_score={self.risk_score})>"

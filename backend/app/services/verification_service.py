@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Dict, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
+import logging
 
 from app.models.company import Company
 from app.models.verification_result import VerificationResult, VerificationStatus, RiskCategory
@@ -13,6 +14,8 @@ from app.services.risk_calculator import RiskCalculator
 from app.services.contact_verification import ContactVerificationService
 from app.services.registration_verification import RegistrationVerificationService
 from app.utils.validators import validate_email, validate_phone, validate_domain
+
+logger = logging.getLogger(__name__)
 
 
 class VerificationService:
@@ -96,9 +99,57 @@ class VerificationService:
             email_exists = None
             phone_carrier_valid = None
             
-            # If we have contact info in company data, verify it
-            # TODO: Extract contact info from company_data or AI collection
-            # For now, placeholder values
+            # Extract and verify contact information
+            from app.services.contact_verification_enhanced import EnhancedContactVerificationService
+            contact_service = EnhancedContactVerificationService(self.db)
+            
+            # Extract contact info from AI collected data or company_data
+            email = None
+            phone = None
+            country_code = company.jurisdiction  # Use jurisdiction as country code hint
+            
+            if ai_collected_data:
+                email = ai_collected_data.get("email")
+                phone = ai_collected_data.get("phone")
+            
+            # Also check company_data for contact information
+            if not email or not phone:
+                contact_data = self.db.query(CompanyData).filter(
+                    CompanyData.company_id == company_id,
+                    CompanyData.data_type == DataType.CONTACT
+                ).all()
+                
+                for data in contact_data:
+                    if data.field_name == "email" and not email:
+                        email = data.field_value
+                    elif data.field_name == "phone" and not phone:
+                        phone = data.field_value
+            
+            # Verify contact information if available
+            if email:
+                try:
+                    email_verification = contact_service.verify_and_store_email(
+                        company_id=company_id,
+                        verification_result_id=verification_result.id,
+                        email=email
+                    )
+                    email_valid = email_verification.format_valid
+                    email_exists = email_verification.email_exists
+                except Exception as e:
+                    logger.warning(f"Email verification failed: {e}")
+            
+            if phone:
+                try:
+                    phone_verification = contact_service.verify_and_store_phone(
+                        company_id=company_id,
+                        verification_result_id=verification_result.id,
+                        phone=phone,
+                        country_code=country_code
+                    )
+                    phone_valid = phone_verification.format_valid
+                    phone_carrier_valid = phone_verification.carrier_valid
+                except Exception as e:
+                    logger.warning(f"Phone verification failed: {e}")
             
             # Step 3: Registration data consistency
             registration_result = self.registration_service.cross_reference_registration_data(
@@ -150,6 +201,14 @@ class VerificationService:
             
             self.db.commit()
             self.db.refresh(verification_result)
+            
+            # Invalidate cache for this company
+            try:
+                from app.services.cache_service import get_cache_service
+                cache = get_cache_service()
+                cache.invalidate_company_cache(str(company_id))
+            except Exception as cache_error:
+                logger.warning(f"Failed to invalidate cache: {cache_error}")
             
             return verification_result
             

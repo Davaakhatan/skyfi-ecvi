@@ -54,6 +54,21 @@ async def login(
     """Authenticate user and return access token"""
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        # Log failed login attempt for security audit
+        # Try to find user by username to get user_id for audit log
+        failed_user = db.query(User).filter(User.username == form_data.username).first()
+        log_audit_event(
+            db=db,
+            user=failed_user,  # May be None if user doesn't exist
+            action="LOGIN_FAILED",
+            resource_type="user",
+            resource_id=failed_user.id if failed_user else None,
+            details={
+                "username": form_data.username,
+                "ip_address": request.client.host if request and request.client else None
+            },
+            request=request
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

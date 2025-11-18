@@ -26,6 +26,8 @@ class User(Base):
     # Relationships
     audit_logs = relationship("AuditLog", back_populates="user")
     reviews = relationship("Review", back_populates="reviewer")
+    corrections_made = relationship("DataCorrection", foreign_keys="DataCorrection.corrected_by", back_populates="corrector")
+    corrections_approved = relationship("DataCorrection", foreign_keys="DataCorrection.approved_by", back_populates="approver")
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

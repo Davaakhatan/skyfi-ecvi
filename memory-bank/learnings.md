@@ -229,5 +229,32 @@ When adding new learnings, use this format:
 
 ---
 
+### Notification System Implementation
+
+**Date:** 2025-01-XX
+
+**Context:** Implemented a comprehensive notification system for tracking verification completion, especially for re-triggered analyses.
+
+**Key Learnings:**
+1. **Zustand Persistence:** Used Zustand's persist middleware to store notifications in localStorage, ensuring they survive page refreshes. This provides a better UX than ephemeral toast notifications.
+2. **Polling Strategy:** Implemented intelligent polling (every 10 seconds) that automatically stops when verification completes or fails. Used `useRef` to store interval IDs for proper cleanup.
+3. **Status Change Detection:** Used `useRef` to track previous verification status and detect transitions (IN_PROGRESS → COMPLETED/FAILED) to trigger notifications only when status actually changes.
+4. **Component Organization:** Created a NotificationCenter component with a dropdown UI that shows unread count, supports mark as read, and provides clickable links to navigate to relevant pages.
+5. **Type Safety:** Properly typed all notification-related code with TypeScript interfaces, including Notification type and LucideIcon types for icons.
+6. **Memory Management:** Limited notifications to last 50 items to prevent localStorage bloat. Implemented proper cleanup of intervals on component unmount.
+
+**Challenges:**
+- Managing polling intervals across component lifecycle - solved with useRef and cleanup in useEffect
+- Detecting status changes without false positives - solved with previousStatusRef tracking
+- TypeScript errors with implicit any types - solved with explicit type annotations
+
+**Solutions:**
+- Used `useRef` for interval management and status tracking
+- Implemented proper cleanup in useEffect return functions
+- Added explicit TypeScript types for all notification-related code
+- Created NotificationCenter component with persistent storage
+
+---
+
 **Last Updated:** 2025-01-XX
 

@@ -26,6 +26,8 @@ class Company(Base):
     company_data = relationship("CompanyData", back_populates="company", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="company", cascade="all, delete-orphan")
     shared_reports = relationship("SharedReport", back_populates="company", cascade="all, delete-orphan")
+    data_corrections = relationship("DataCorrection", back_populates="company", cascade="all, delete-orphan")
+    contact_verifications = relationship("ContactVerificationResult", back_populates="company", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Company(id={self.id}, legal_name={self.legal_name})>"

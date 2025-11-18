@@ -175,6 +175,11 @@ async def create_company(
             detail="Failed to create company"
         )
     
+    # Invalidate cache
+    from app.services.cache_service import get_cache_service
+    cache = get_cache_service()
+    cache.delete_pattern("company:*")
+    
     # Log audit event
     log_audit_event(
         db=db,
@@ -276,23 +281,37 @@ async def get_companies(
     
     query = query.order_by(order_by)
     
-    # Pagination
-    companies = query.offset(skip).limit(limit).all()
+    # Performance optimization: Use eager loading to prevent N+1 queries
+    from sqlalchemy.orm import selectinload
+    
+    # Apply pagination with eager loading for related data
+    companies = query.options(
+        # Eagerly load latest verification result per company
+        selectinload(Company.verification_results).order_by(desc(VerificationResult.created_at)).limit(1),
+        # Eagerly load latest review per company (filtered by current user)
+        selectinload(Company.reviews).filter(Review.reviewer_id == current_user.id).order_by(desc(Review.reviewed_at)).limit(1)
+    ).offset(skip).limit(limit).all()
+    
+    # Pre-fetch all reviewer user IDs to avoid N+1 queries for user lookups
+    reviewer_ids = set()
+    for company in companies:
+        if company.reviews:
+            reviewer_ids.add(company.reviews[0].reviewer_id)
+    
+    # Batch fetch all reviewers in one query
+    reviewers = {}
+    if reviewer_ids:
+        reviewer_users = db.query(User).filter(User.id.in_(reviewer_ids)).all()
+        reviewers = {str(user.id): user for user in reviewer_users}
     
     # Build response with review and verification information
     items = []
     for company in companies:
-        # Get the most recent review for current user
-        review = db.query(Review).filter(
-            and_(
-                Review.company_id == company.id,
-                Review.reviewer_id == current_user.id
-            )
-        ).order_by(desc(Review.reviewed_at)).first()
-        
+        # Get the most recent review for current user (already loaded via eager loading)
         review_info = None
-        if review:
-            reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
+        if company.reviews:
+            review = company.reviews[0]
+            reviewer = reviewers.get(str(review.reviewer_id))
             reviewer_name = reviewer.username if reviewer else reviewer.email if reviewer else "Unknown"
             review_info = ReviewInfo(
                 status=review.status,
@@ -300,13 +319,10 @@ async def get_companies(
                 reviewer_name=reviewer_name
             )
         
-        # Get the most recent verification result
-        verification_result = db.query(VerificationResult).filter(
-            VerificationResult.company_id == company.id
-        ).order_by(desc(VerificationResult.created_at)).first()
-        
+        # Get the most recent verification result (already loaded via eager loading)
         verification_info = None
-        if verification_result:
+        if company.verification_results:
+            verification_result = company.verification_results[0]
             verification_info = VerificationResultInfo(
                 id=str(verification_result.id),
                 risk_score=verification_result.risk_score,
@@ -342,6 +358,15 @@ async def get_company(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific company by ID"""
+    # Performance optimization: Check cache first
+    from app.services.cache_service import get_cache_service
+    cache = get_cache_service()
+    cache_key = f"company:{company_id}"
+    
+    cached_company = cache.get(cache_key)
+    if cached_company:
+        return cached_company
+    
     company = db.query(Company).filter(Company.id == company_id).first()
     
     if not company:
@@ -349,6 +374,9 @@ async def get_company(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Company not found"
         )
+    
+    # Cache for 30 minutes
+    cache.set(cache_key, company, ttl=1800)
     
     return company
 
@@ -422,6 +450,12 @@ async def update_company(
             detail="Failed to update company"
         )
     
+    # Invalidate cache for this company
+    from app.services.cache_service import get_cache_service
+    cache = get_cache_service()
+    cache.delete(f"company:{company_id}")
+    cache.invalidate_company_cache(str(company_id))
+    
     # Log audit event
     log_audit_event(
         db=db,
@@ -472,6 +506,12 @@ async def delete_company(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete company"
         )
+    
+    # Invalidate cache
+    from app.services.cache_service import get_cache_service
+    cache = get_cache_service()
+    cache.invalidate_company_cache(str(company_id))
+    cache.delete_pattern("company:*")
     
     return None
 
@@ -610,6 +650,15 @@ async def get_verification_result(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get latest verification result for a company"""
+    # Performance optimization: Check cache first
+    from app.services.cache_service import get_cache_service
+    cache = get_cache_service()
+    cache_key = f"verification:{company_id}:latest"
+    
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        return cached_result
+    
     company = db.query(Company).filter(Company.id == company_id).first()
     
     if not company:
@@ -626,6 +675,9 @@ async def get_verification_result(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No verification result found for this company"
         )
+    
+    # Cache for 15 minutes
+    cache.set(cache_key, verification_result, ttl=900)
     
     return verification_result
 

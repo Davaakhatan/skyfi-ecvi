@@ -21,6 +21,17 @@ if settings.is_production and not cors_origins:
     logger.warning("CORS_ORIGINS not configured in production. Defaulting to empty list.")
     cors_origins = []
 
+# Add security headers middleware (first, so it applies to all responses)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Add rate limiting middleware (if enabled)
+if settings.RATE_LIMIT_ENABLED:
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE
+    )
+
+# CORS middleware - production-safe configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins else [] if settings.is_production else ["*"],
@@ -79,7 +90,7 @@ async def health_check():
 
 
 # API routers
-from app.api.v1 import auth, audit, companies, risk_scoring, reports, reviews
+from app.api.v1 import auth, audit, companies, risk_scoring, reports, reviews, data_corrections, contact_verification, security
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
@@ -87,4 +98,7 @@ app.include_router(companies.router, prefix="/api/v1/companies", tags=["companie
 app.include_router(risk_scoring.router, prefix="/api/v1/risk", tags=["risk-scoring"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(reviews.router, prefix="/api/v1/reviews", tags=["reviews"])
+app.include_router(data_corrections.router, prefix="/api/v1", tags=["data-corrections"])
+app.include_router(contact_verification.router, prefix="/api/v1", tags=["contact-verification"])
+app.include_router(security.router, prefix="/api/v1/security", tags=["security"])
 

@@ -19,6 +19,12 @@ class ReportGenerator:
     
     def __init__(self, db: Session):
         self.db = db
+        # Use eager loading to optimize queries
+        from sqlalchemy.orm import joinedload
+        self._company_query = db.query(Company).options(
+            joinedload(Company.verification_results),
+            joinedload(Company.company_data)
+        )
     
     def generate_report(
         self,
@@ -38,30 +44,47 @@ class ReportGenerator:
         Returns:
             Dictionary with complete report data
         """
-        # Optimize: Single query to get company with relationships
-        company = self.db.query(Company).filter(Company.id == company_id).first()
+        # Optimize: Single query to get company with relationships (eager loading)
+        company = self._company_query.filter(Company.id == company_id).first()
         if not company:
             raise ValueError(f"Company {company_id} not found")
         
-        # Optimize: Get verification result with single query
+        # Optimize: Get verification result (already loaded via relationship or query)
         if verification_result_id:
-            verification_result = self.db.query(VerificationResult).filter(
-                VerificationResult.id == verification_result_id,
-                VerificationResult.company_id == company_id
-            ).first()
+            verification_result = next(
+                (vr for vr in company.verification_results if vr.id == verification_result_id),
+                None
+            )
+            if not verification_result:
+                verification_result = self.db.query(VerificationResult).filter(
+                    VerificationResult.id == verification_result_id,
+                    VerificationResult.company_id == company_id
+                ).first()
         else:
-            verification_result = self.db.query(VerificationResult).filter(
-                VerificationResult.company_id == company_id,
-                VerificationResult.verification_status == VerificationStatus.COMPLETED
-            ).order_by(desc(VerificationResult.created_at)).first()
+            # Get latest completed verification result
+            verification_result = next(
+                (vr for vr in sorted(
+                    company.verification_results,
+                    key=lambda x: x.created_at,
+                    reverse=True
+                ) if vr.verification_status == VerificationStatus.COMPLETED),
+                None
+            )
+            if not verification_result:
+                verification_result = self.db.query(VerificationResult).filter(
+                    VerificationResult.company_id == company_id,
+                    VerificationResult.verification_status == VerificationStatus.COMPLETED
+                ).order_by(desc(VerificationResult.created_at)).first()
         
         if not verification_result:
             raise ValueError(f"No verification result found for company {company_id}")
         
-        # Optimize: Single query to get all company data (eager loading)
-        company_data = self.db.query(CompanyData).filter(
-            CompanyData.company_id == company_id
-        ).all()
+        # Optimize: Use already loaded company_data or query if not loaded
+        company_data = list(company.company_data) if company.company_data else []
+        if not company_data:
+            company_data = self.db.query(CompanyData).filter(
+                CompanyData.company_id == company_id
+            ).all()
         
         # Build report sections (optimized: process data once, reuse in multiple sections)
         # Pre-process company_data to avoid repeated filtering

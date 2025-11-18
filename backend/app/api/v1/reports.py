@@ -49,6 +49,22 @@ async def get_verification_report(
         request=request
     )
     
+    # Performance optimization: Check cache first
+    cache = get_cache_service()
+    cache_key = f"report:{company_id}:{verification_result_id or 'latest'}:{format}"
+    
+    # Try to get from cache
+    cached_report = cache.get(cache_key)
+    if cached_report and format.lower() == "json":
+        # Return cached JSON report
+        return JSONResponse(
+            content=cached_report,
+            headers={
+                "Content-Disposition": f'attachment; filename="report_{company_id}_{cached_report.get("report_metadata", {}).get("report_id", "")}.json"',
+                "X-Cache": "HIT"
+            }
+        )
+    
     # Generate report
     report_generator = ReportGenerator(db)
     try:
@@ -58,6 +74,10 @@ async def get_verification_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+    
+    # Cache JSON reports for 1 hour
+    if format.lower() == "json":
+        cache.set(cache_key, report_data, ttl=3600)
     
     # Export in requested format
     exporter = ReportExporter()
@@ -229,6 +249,19 @@ async def get_shared_report(
             detail="Shareable link not found, expired, or revoked"
         )
     
+    # Performance optimization: Check cache first
+    cache = get_cache_service()
+    cache_key = f"report:shared:{share_token}:{format}"
+    
+    # Try to get from cache (only for JSON format)
+    if format.lower() == "json":
+        cached_report = cache.get(cache_key)
+        if cached_report:
+            return JSONResponse(
+                content=cached_report,
+                headers={"X-Cache": "HIT"}
+            )
+    
     # Generate report
     report_generator = ReportGenerator(db)
     try:
@@ -241,6 +274,10 @@ async def get_shared_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+    
+    # Cache JSON reports for 1 hour
+    if format.lower() == "json":
+        cache.set(cache_key, report_data, ttl=3600)
     
     # Export in requested format
     exporter = ReportExporter()

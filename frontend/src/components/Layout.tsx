@@ -8,6 +8,7 @@ import {
   X 
 } from 'lucide-react'
 import { useState } from 'react'
+import NotificationCenter from './NotificationCenter'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
@@ -92,13 +93,21 @@ export default function Layout() {
           </div>
           <span className="text-lg font-semibold text-gray-900">ECVI</span>
         </div>
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+        <div className="flex items-center space-x-2">
+          <NotificationCenter />
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
       </div>
+      
+      {/* Desktop header */}
+      <header className="hidden lg:flex fixed top-0 left-64 right-0 h-16 bg-white border-b border-gray-200 items-center justify-end px-6 z-30">
+        <NotificationCenter />
+      </header>
 
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
@@ -148,7 +157,7 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0">
+      <main className="lg:pl-64 pt-16 lg:pt-16">
         <div className="p-6 lg:p-8">
           <Outlet />
         </div>

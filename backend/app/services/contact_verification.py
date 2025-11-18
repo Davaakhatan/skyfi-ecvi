@@ -69,9 +69,10 @@ class ContactVerificationService:
             result["errors"].append(f"MX record check failed: {str(e)}")
         
         # Step 4: Email existence check (SMTP verification)
-        # Note: This is a basic check - full SMTP verification requires connecting to mail server
-        # For now, we'll mark it as None (not checked) since it requires external service
-        # TODO: Integrate with email verification API (e.g., ZeroBounce, NeverBounce)
+        # Note: Full SMTP verification requires connecting to mail server or using external API
+        # Many mail servers block SMTP verification attempts, so this is often unreliable
+        # TODO: Integrate with email verification API (e.g., ZeroBounce, NeverBounce, Hunter.io)
+        # For now, mark as None (not checked) - external API integration required for reliable results
         result["email_exists"] = None
         
         # Overall verification status

@@ -165,7 +165,11 @@ async def get_review(
             detail="No review found for this company"
         )
     
-    reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
+    # Performance optimization: Use eager loading if available, otherwise query
+    if hasattr(review, 'reviewer') and review.reviewer:
+        reviewer = review.reviewer
+    else:
+        reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
     reviewer_name = reviewer.username if reviewer else reviewer.email if reviewer else "Unknown"
     
     return ReviewResponse(

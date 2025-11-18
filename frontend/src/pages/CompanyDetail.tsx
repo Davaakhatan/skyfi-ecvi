@@ -1,16 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../services/api'
 import { toast } from '../utils/toast'
-import { ArrowLeft, Download, Share2, Building2, CheckCircle, AlertTriangle, Clock, Play, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Download, Share2, Building2, CheckCircle, AlertTriangle, Clock, Play, Loader2, RefreshCw, Edit2 } from 'lucide-react'
 import RiskScoreBadge from '../components/RiskScoreBadge'
 import ReviewStatusBadge from '../components/ReviewStatusBadge'
 import ReviewModal from '../components/ReviewModal'
 import ReTriggerModal from '../components/ReTriggerModal'
 import VerificationDetails from '../components/VerificationDetails'
 import VerificationIndicator, { VerificationStatus } from '../components/VerificationIndicator'
+import VerificationHistoryChart from '../components/VerificationHistoryChart'
+import DataCorrectionModal from '../components/DataCorrectionModal'
+import CorrectionHistory from '../components/CorrectionHistory'
+import CorrectionApprovalPanel from '../components/CorrectionApprovalPanel'
+import ContactVerification from '../components/ContactVerification'
 import { format } from 'date-fns'
 import type { Company, VerificationResult, Review } from '../types/api'
+import { useNotificationStore } from '../store/notificationStore'
 
 interface ReportData {
   discrepancies?: {
@@ -30,10 +36,16 @@ export default function CompanyDetail() {
   const [review, setReview] = useState<Review | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [showReTriggerModal, setShowReTriggerModal] = useState(false)
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false)
+  const [correctionField, setCorrectionField] = useState<{ name: string; type: 'legal_name' | 'registration_number' | 'jurisdiction' | 'domain'; value: string | null } | null>(null)
   const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([])
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [loadingReport, setLoadingReport] = useState(false)
+  const [wasReTriggered, setWasReTriggered] = useState(false)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const previousStatusRef = useRef<string | null>(null)
+  const { addNotification } = useNotificationStore()
 
   const fetchCompany = useCallback(async () => {
     if (!id) return
@@ -90,15 +102,55 @@ export default function CompanyDetail() {
     }
   }, [id])
 
-  const handleReTriggerSuccess = useCallback(() => {
-    fetchVerification()
-    fetchVerificationHistory()
-  }, [fetchVerification, fetchVerificationHistory])
-
   const fetchVerification = useCallback(async () => {
     if (!id) return
     try {
       const response = await api.get<VerificationResult>(`/companies/${id}/verification`)
+      const newStatus = response.data.verification_status
+      const previousStatus = previousStatusRef.current
+      
+      // Check if status changed from IN_PROGRESS to COMPLETED
+      if (previousStatus === 'IN_PROGRESS' && newStatus === 'COMPLETED') {
+        // Show notification
+        addNotification({
+          type: 'success',
+          title: 'Verification Completed',
+          message: wasReTriggered
+            ? `Re-analysis completed for ${company?.legal_name || 'company'}`
+            : `Verification completed for ${company?.legal_name || 'company'}`,
+          companyId: id,
+          companyName: company?.legal_name,
+          actionUrl: `/companies/${id}`,
+        })
+        
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        setWasReTriggered(false)
+      }
+      
+      // Check if status changed to FAILED
+      if (previousStatus === 'IN_PROGRESS' && newStatus === 'FAILED') {
+        addNotification({
+          type: 'error',
+          title: 'Verification Failed',
+          message: `Verification failed for ${company?.legal_name || 'company'}`,
+          companyId: id,
+          companyName: company?.legal_name,
+          actionUrl: `/companies/${id}`,
+        })
+        
+        // Stop polling
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        setWasReTriggered(false)
+      }
+      
+      previousStatusRef.current = newStatus
       setVerification(response.data)
       
       // Fetch report data if verification is completed
@@ -110,7 +162,22 @@ export default function CompanyDetail() {
     } finally {
       setLoading(false)
     }
-  }, [id, fetchReportData])
+  }, [id, fetchReportData, company?.legal_name, wasReTriggered, addNotification])
+
+  const handleReTriggerSuccess = useCallback(() => {
+    setWasReTriggered(true)
+    previousStatusRef.current = 'IN_PROGRESS' // Set initial status for comparison
+    fetchVerification()
+    fetchVerificationHistory()
+    
+    // Start polling for status updates
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+    pollingIntervalRef.current = setInterval(() => {
+      fetchVerification()
+    }, 10000) // Poll every 10 seconds
+  }, [fetchVerification, fetchVerificationHistory])
 
   useEffect(() => {
     if (id) {
@@ -120,6 +187,13 @@ export default function CompanyDetail() {
       fetchVerificationHistory()
     }
   }, [id, fetchCompany, fetchVerification, fetchReview, fetchVerificationHistory])
+  
+  // Initialize previous status when verification is first loaded
+  useEffect(() => {
+    if (verification) {
+      previousStatusRef.current = verification.verification_status
+    }
+  }, [verification?.id]) // Only update when verification ID changes (new verification)
 
   const handleVerify = async () => {
     if (!id) return
@@ -129,6 +203,16 @@ export default function CompanyDetail() {
         params: { async_mode: true, timeout_hours: 2.0 },
       })
       toast.success('Verification started! This may take a few minutes.')
+      previousStatusRef.current = 'IN_PROGRESS'
+      
+      // Start polling for status updates
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+      pollingIntervalRef.current = setInterval(() => {
+        fetchVerification()
+      }, 10000) // Poll every 10 seconds
+      
       // Refresh verification status after a short delay
       setTimeout(() => {
         fetchVerification()
@@ -140,6 +224,25 @@ export default function CompanyDetail() {
       setVerifying(false)
     }
   }
+  
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [])
+  
+  // Stop polling when verification is completed or failed
+  useEffect(() => {
+    if (verification && (verification.verification_status === 'COMPLETED' || verification.verification_status === 'FAILED')) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [verification])
 
   const handleExport = async (format: 'json' | 'csv' | 'pdf' | 'html') => {
     if (!id) return
@@ -359,37 +462,20 @@ export default function CompanyDetail() {
 
       {/* Company Information */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Company Information</h2>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <div className="flex items-center space-x-2 mb-1">
-              <p className="text-sm text-gray-600">Legal Name</p>
-              {reportData?.discrepancies?.name && (
-                <VerificationIndicator
-                  status={
-                    reportData.discrepancies.name.severity === 'high'
-                      ? 'discrepancy'
-                      : reportData.discrepancies.name.severity === 'medium'
-                      ? 'partial'
-                      : 'verified'
-                  }
-                  label=""
-                  size="sm"
-                />
-              )}
-            </div>
-            <p className="text-lg font-medium text-gray-900 mt-1">{company.legal_name}</p>
-          </div>
-          {company.registration_number && (
-            <div>
-              <div className="flex items-center space-x-2 mb-1">
-                <p className="text-sm text-gray-600">Registration Number</p>
-                {reportData?.discrepancies?.registration && (
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-gray-600">Legal Name</p>
+                {reportData?.discrepancies?.name && (
                   <VerificationIndicator
                     status={
-                      reportData.discrepancies.registration.severity === 'high'
+                      reportData.discrepancies.name.severity === 'high'
                         ? 'discrepancy'
-                        : reportData.discrepancies.registration.severity === 'medium'
+                        : reportData.discrepancies.name.severity === 'medium'
                         ? 'partial'
                         : 'verified'
                     }
@@ -398,18 +484,85 @@ export default function CompanyDetail() {
                   />
                 )}
               </div>
+              <button
+                onClick={() => {
+                  setCorrectionField({ name: 'Legal Name', type: 'legal_name', value: company.legal_name })
+                  setShowCorrectionModal(true)
+                }}
+                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                title="Correct this field"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-lg font-medium text-gray-900 mt-1">{company.legal_name}</p>
+          </div>
+          {company.registration_number && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-gray-600">Registration Number</p>
+                  {reportData?.discrepancies?.registration && (
+                    <VerificationIndicator
+                      status={
+                        reportData.discrepancies.registration.severity === 'high'
+                          ? 'discrepancy'
+                          : reportData.discrepancies.registration.severity === 'medium'
+                          ? 'partial'
+                          : 'verified'
+                      }
+                      label=""
+                      size="sm"
+                    />
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setCorrectionField({ name: 'Registration Number', type: 'registration_number', value: company.registration_number })
+                    setShowCorrectionModal(true)
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                  title="Correct this field"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
               <p className="text-lg font-medium text-gray-900 mt-1">{company.registration_number}</p>
             </div>
           )}
           {company.jurisdiction && (
             <div>
-              <p className="text-sm text-gray-600">Jurisdiction</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm text-gray-600">Jurisdiction</p>
+                <button
+                  onClick={() => {
+                    setCorrectionField({ name: 'Jurisdiction', type: 'jurisdiction', value: company.jurisdiction })
+                    setShowCorrectionModal(true)
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                  title="Correct this field"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
               <p className="text-lg font-medium text-gray-900 mt-1">{company.jurisdiction}</p>
             </div>
           )}
           {company.domain && (
             <div>
-              <p className="text-sm text-gray-600">Domain</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm text-gray-600">Domain</p>
+                <button
+                  onClick={() => {
+                    setCorrectionField({ name: 'Domain', type: 'domain', value: company.domain })
+                    setShowCorrectionModal(true)
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                  title="Correct this field"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
               <a
                 href={`https://${company.domain}`}
                 target="_blank"
@@ -428,6 +581,35 @@ export default function CompanyDetail() {
           </div>
         </div>
       </div>
+
+      {/* Pending Corrections Approval Panel (Admin/Compliance only) */}
+      {id && (
+        <CorrectionApprovalPanel
+          companyId={id}
+          onApprovalChange={() => {
+            fetchCompany() // Refresh company data after approval
+          }}
+        />
+      )}
+
+      {/* Correction History */}
+      {id && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Data Correction History</h2>
+          <CorrectionHistory companyId={id} />
+        </div>
+      )}
+
+      {/* Contact Verification */}
+      {verification && verification.verification_status === 'COMPLETED' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Verification</h2>
+          <ContactVerification
+            companyId={id!}
+            verificationResultId={verification.id}
+          />
+        </div>
+      )}
 
       {/* Verification Details */}
       {verification && verification.verification_status === 'COMPLETED' && reportData && (
@@ -560,43 +742,52 @@ export default function CompanyDetail() {
 
       {/* Verification History Comparison */}
       {verificationHistory.length > 1 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Verification History</h2>
-          <div className="space-y-3">
-            {verificationHistory.map((result, index) => (
-              <div
-                key={result.id}
-                className={`p-4 rounded-lg border ${
-                  index === 0
-                    ? 'bg-primary-50 border-primary-200'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {index === 0 && (
-                      <span className="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded">
-                        Latest
-                      </span>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {format(new Date(result.created_at), 'MMM d, yyyy HH:mm')}
-                      </p>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <RiskScoreBadge
-                          score={result.risk_score}
-                          category={result.risk_category}
-                        />
-                        <span className="text-xs text-gray-600 capitalize">
-                          {result.verification_status.toLowerCase().replace('_', ' ')}
+        <div className="space-y-6">
+          {/* Visual Charts */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Verification History Analysis</h2>
+            <VerificationHistoryChart history={verificationHistory} />
+          </div>
+
+          {/* History List */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Verification History</h2>
+            <div className="space-y-3">
+              {verificationHistory.map((result, index) => (
+                <div
+                  key={result.id}
+                  className={`p-4 rounded-lg border ${
+                    index === 0
+                      ? 'bg-primary-50 border-primary-200'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {index === 0 && (
+                        <span className="px-2 py-1 bg-primary-600 text-white text-xs font-medium rounded">
+                          Latest
                         </span>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {format(new Date(result.created_at), 'MMM d, yyyy HH:mm')}
+                        </p>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <RiskScoreBadge
+                            score={result.risk_score}
+                            category={result.risk_category}
+                          />
+                          <span className="text-xs text-gray-600 capitalize">
+                            {result.verification_status.toLowerCase().replace('_', ' ')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -619,6 +810,26 @@ export default function CompanyDetail() {
           onClose={() => setShowReTriggerModal(false)}
           companyId={id}
           onSuccess={handleReTriggerSuccess}
+        />
+      )}
+
+      {/* Data Correction Modal */}
+      {id && company && correctionField && (
+        <DataCorrectionModal
+          isOpen={showCorrectionModal}
+          onClose={() => {
+            setShowCorrectionModal(false)
+            setCorrectionField(null)
+          }}
+          company={company}
+          fieldName={correctionField.name}
+          fieldType={correctionField.type}
+          currentValue={correctionField.value}
+          onSuccess={() => {
+            fetchCompany() // Refresh company data
+            setShowCorrectionModal(false)
+            setCorrectionField(null)
+          }}
         />
       )}
     </div>

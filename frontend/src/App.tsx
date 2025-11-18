@@ -1,11 +1,23 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { ToastProvider } from './utils/toast'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import CompanyList from './pages/CompanyList'
-import CompanyDetail from './pages/CompanyDetail'
+
+// Lazy load pages for better performance
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const CompanyList = lazy(() => import('./pages/CompanyList'))
+const CompanyDetail = lazy(() => import('./pages/CompanyDetail'))
+
+// Loading component
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    </div>
+  )
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -27,9 +39,30 @@ function App() {
               </PrivateRoute>
             }
           >
-            <Route index element={<Dashboard />} />
-            <Route path="companies" element={<CompanyList />} />
-            <Route path="companies/:id" element={<CompanyDetail />} />
+            <Route
+              index
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <Dashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="companies"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CompanyList />
+                </Suspense>
+              }
+            />
+            <Route
+              path="companies/:id"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <CompanyDetail />
+                </Suspense>
+              }
+            />
           </Route>
         </Routes>
       </BrowserRouter>
