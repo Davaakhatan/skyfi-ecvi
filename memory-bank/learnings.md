@@ -200,6 +200,33 @@ When adding new learnings, use this format:
 [What was done or will be done]
 ```
 
+### Frontend Development
+
+**Date:** 2025-01-XX
+
+**Context:** Building the React frontend application with TypeScript, Vite, and Tailwind CSS.
+
+**Key Learnings:**
+1. **TypeScript Type Safety:** Created a centralized `types/api.ts` file with all API response types. This ensures type safety across all components and prevents runtime errors.
+2. **Zustand State Management:** Used Zustand with persistence middleware for authentication state. Simpler than Redux and perfect for this use case.
+3. **React Hooks Best Practices:** Used `useCallback` for memoizing functions passed to `useEffect` dependencies to prevent infinite loops.
+4. **Form Validation:** Implemented client-side validation in CreateCompanyModal with real-time error feedback. Server-side validation is still the source of truth.
+5. **Async Operations:** Implemented async verification trigger with proper loading states and user feedback via toast notifications.
+6. **Component Organization:** Separated concerns - modal components, page components, utility components, and shared components.
+7. **Error Handling:** Implemented comprehensive error handling with user-friendly messages and proper error boundaries.
+8. **Responsive Design:** Used Tailwind CSS utility classes for responsive design. Mobile-first approach with breakpoints.
+9. **Accessibility:** Added proper ARIA labels, keyboard navigation support, and focus states for accessibility compliance.
+
+**Challenges:**
+- Managing TypeScript types across multiple files - solved with centralized types file
+- useEffect dependency arrays causing infinite loops - solved with useCallback
+- Handling async operations with proper loading states - solved with state management
+
+**Solutions:**
+- Centralized type definitions in `frontend/src/types/api.ts`
+- Used `useCallback` for memoized functions in useEffect dependencies
+- Implemented loading states and toast notifications for user feedback
+
 ---
 
 **Last Updated:** 2025-01-XX

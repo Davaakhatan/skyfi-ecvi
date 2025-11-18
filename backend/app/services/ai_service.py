@@ -123,8 +123,9 @@ class CompanyResearcherAgent:
             return json.dumps({"error": str(e), "query": query})
     
     def _api_lookup(self, input_str: str) -> str:
-        """API lookup tool for company registry APIs"""
+        """API lookup tool for company registry APIs and business directories"""
         try:
+            from app.services.business_directory import BusinessDirectoryService
             from app.services.data_collection import DataCollectionService
             
             # Parse input (expects JSON string with company info)
@@ -136,11 +137,21 @@ class CompanyResearcherAgent:
             company_name = params.get("company_name") or params.get("query", "")
             registration_number = params.get("registration_number")
             jurisdiction = params.get("jurisdiction")
+            location = params.get("location")
             
-            # Use DataCollectionService for API lookups
+            # Use BusinessDirectoryService for business directory lookups
+            directory_service = BusinessDirectoryService()
+            
+            # Search all business directories
+            directory_results = directory_service.search_all_directories(
+                company_name=company_name,
+                jurisdiction=jurisdiction,
+                registration_number=registration_number,
+                location=location
+            )
+            
+            # Also use DataCollectionService for official registry APIs
             collection_service = DataCollectionService()
-            
-            # Configure sources based on jurisdiction
             sources = []
             
             # UK Companies House
@@ -174,15 +185,20 @@ class CompanyResearcherAgent:
                     "use_cache": True
                 })
             
+            registry_results = {}
             if sources:
-                result = collection_service.collect_from_multiple_sources(sources, company_name)
-                return json.dumps(result)
-            else:
-                return json.dumps({
-                    "success": False,
-                    "error": f"No API sources configured for jurisdiction: {jurisdiction}",
-                    "input": input_str
-                })
+                registry_results = collection_service.collect_from_multiple_sources(sources, company_name)
+            
+            # Combine results from business directories and official registries
+            combined_results = {
+                "success": directory_results.get("success") or registry_results.get("success", False),
+                "business_directories": directory_results,
+                "official_registries": registry_results,
+                "all_sources": directory_results.get("successful_sources", []) + registry_results.get("successful_sources", []),
+                "collected_at": datetime.utcnow().isoformat()
+            }
+            
+            return json.dumps(combined_results)
                 
         except Exception as e:
             logger.error(f"API lookup failed: {e}")

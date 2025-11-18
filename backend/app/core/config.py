@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     DNS_LOOKUP_SERVICE_URL: str = ""
     COMPANY_REGISTRY_API_KEY: str = ""
     
+    # Business Directory APIs
+    CRUNCHBASE_API_KEY: str = ""
+    GOOGLE_PLACES_API_KEY: str = ""
+    YELP_API_KEY: str = ""
+    
     # Email
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

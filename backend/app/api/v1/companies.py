@@ -13,6 +13,7 @@ from app.models.company import Company
 from app.models.verification_result import VerificationResult, RiskCategory, VerificationStatus
 from app.models.review import Review, ReviewStatus
 from app.models.user import User
+from sqlalchemy import desc
 from app.core.auth import get_current_active_user
 from app.core.audit import log_audit_event
 from app.services.verification_service import VerificationService
@@ -44,9 +45,47 @@ class CompanyResponse(BaseModel):
         from_attributes = True
 
 
+class ReviewInfo(BaseModel):
+    """Review information for company list"""
+    status: ReviewStatus
+    reviewed_at: Optional[datetime]
+    reviewer_name: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+class VerificationResultInfo(BaseModel):
+    """Verification result info for company list"""
+    id: str
+    risk_score: int
+    risk_category: RiskCategory
+    verification_status: VerificationStatus
+    analysis_completed_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class CompanyWithReviewInfo(BaseModel):
+    """Company response with review and verification info"""
+    id: str
+    legal_name: str
+    registration_number: Optional[str]
+    jurisdiction: Optional[str]
+    domain: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    review: Optional[ReviewInfo] = None
+    verification_result: Optional[VerificationResultInfo] = None
+    
+    class Config:
+        from_attributes = True
+
+
 class CompanyListResponse(BaseModel):
     """Company list response with pagination"""
-    items: List[CompanyResponse]
+    items: List[CompanyWithReviewInfo]
     total: int
     skip: int
     limit: int
@@ -65,6 +104,12 @@ class VerificationResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ReTriggerRequest(BaseModel):
+    """Re-trigger analysis request model"""
+    reason: Optional[str] = None
+    timeout_hours: float = 2.0
 
 
 @router.post("/", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
@@ -111,17 +156,6 @@ async def create_company(
                 detail=f"Invalid registration number: {reg_error}"
             )
     
-    # Check if company already exists
-    existing_company = db.query(Company).filter(
-        Company.legal_name == company_data.legal_name.strip()
-    ).first()
-    
-    if existing_company:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Company with this name already exists"
-        )
-    
     # Create new company
     try:
         new_company = Company(
@@ -153,6 +187,7 @@ async def create_company(
     )
     
     return new_company
+
 
 
 @router.get("/", response_model=CompanyListResponse)
@@ -244,8 +279,56 @@ async def get_companies(
     # Pagination
     companies = query.offset(skip).limit(limit).all()
     
+    # Build response with review and verification information
+    items = []
+    for company in companies:
+        # Get the most recent review for current user
+        review = db.query(Review).filter(
+            and_(
+                Review.company_id == company.id,
+                Review.reviewer_id == current_user.id
+            )
+        ).order_by(desc(Review.reviewed_at)).first()
+        
+        review_info = None
+        if review:
+            reviewer = db.query(User).filter(User.id == review.reviewer_id).first()
+            reviewer_name = reviewer.username if reviewer else reviewer.email if reviewer else "Unknown"
+            review_info = ReviewInfo(
+                status=review.status,
+                reviewed_at=review.reviewed_at,
+                reviewer_name=reviewer_name
+            )
+        
+        # Get the most recent verification result
+        verification_result = db.query(VerificationResult).filter(
+            VerificationResult.company_id == company.id
+        ).order_by(desc(VerificationResult.created_at)).first()
+        
+        verification_info = None
+        if verification_result:
+            verification_info = VerificationResultInfo(
+                id=str(verification_result.id),
+                risk_score=verification_result.risk_score,
+                risk_category=verification_result.risk_category,
+                verification_status=verification_result.verification_status,
+                analysis_completed_at=verification_result.analysis_completed_at
+            )
+        
+        items.append(CompanyWithReviewInfo(
+            id=str(company.id),
+            legal_name=company.legal_name,
+            registration_number=company.registration_number,
+            jurisdiction=company.jurisdiction,
+            domain=company.domain,
+            created_at=company.created_at,
+            updated_at=company.updated_at,
+            review=review_info,
+            verification_result=verification_info
+        ))
+    
     return {
-        "items": companies,
+        "items": items,
         "total": total,
         "skip": skip,
         "limit": limit
@@ -457,6 +540,69 @@ async def verify_company(
         return verification_result
 
 
+@router.post("/{company_id}/verify/retrigger", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
+async def retrigger_verification(
+    company_id: UUID,
+    retrigger_data: ReTriggerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    request: Request = None
+):
+    """Re-trigger company verification (preserves previous results)"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    # Get previous verification result for comparison
+    previous_result = db.query(VerificationResult).filter(
+        VerificationResult.company_id == company_id
+    ).order_by(desc(VerificationResult.created_at)).first()
+    
+    # Log audit event with reason
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action="RETRIGGER_VERIFICATION",
+        resource_type="company",
+        resource_id=company.id,
+        details={
+            "legal_name": company.legal_name,
+            "reason": retrigger_data.reason,
+            "timeout_hours": retrigger_data.timeout_hours,
+            "previous_result_id": str(previous_result.id) if previous_result else None
+        },
+        request=request
+    )
+    
+    # Start async verification via Celery (always async for re-triggers)
+    task_info = TaskQueueService.start_verification(company_id, retrigger_data.timeout_hours)
+    
+    # Create new verification result record (previous one is preserved)
+    try:
+        verification_result = VerificationResult(
+            company_id=company_id,
+            risk_score=0,
+            risk_category=RiskCategory.LOW,
+            verification_status=VerificationStatus.IN_PROGRESS,
+            analysis_started_at=datetime.utcnow()
+        )
+        db.add(verification_result)
+        db.commit()
+        db.refresh(verification_result)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create verification result"
+        )
+    
+    return verification_result
+
+
 @router.get("/{company_id}/verification", response_model=VerificationResponse)
 async def get_verification_result(
     company_id: UUID,
@@ -484,6 +630,29 @@ async def get_verification_result(
     return verification_result
 
 
+@router.get("/{company_id}/verification/history", response_model=List[VerificationResponse])
+async def get_verification_history(
+    company_id: UUID,
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get verification history for a company (for comparison)"""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+    
+    verification_results = db.query(VerificationResult).filter(
+        VerificationResult.company_id == company_id
+    ).order_by(desc(VerificationResult.created_at)).limit(limit).all()
+    
+    return verification_results
+
+
 @router.get("/{company_id}/verification/status")
 async def get_verification_status(
     company_id: UUID,
@@ -503,7 +672,7 @@ async def get_verification_status(
     # Get latest verification result
     verification_result = db.query(VerificationResult).filter(
         VerificationResult.company_id == company_id
-    ).order_by(VerificationResult.created_at.desc()).first()
+    ).order_by(desc(VerificationResult.created_at)).first()
     
     if not verification_result:
         raise HTTPException(
@@ -598,4 +767,3 @@ async def get_queue_stats(
         "queue": stats,
         "workers": worker_stats
     }
-
