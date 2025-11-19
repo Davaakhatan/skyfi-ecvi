@@ -11,10 +11,14 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:setup": "bash scripts/test-setup.sh",
+    "test:teardown": "bash scripts/test-teardown.sh"
   },
   "dependencies": {
     "axios": "^1.6.2",

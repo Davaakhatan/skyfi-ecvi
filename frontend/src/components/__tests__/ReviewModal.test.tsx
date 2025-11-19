@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '../../test/utils'
+import { render, screen } from '../../test/utils/test-utils'
 import ReviewModal from '../ReviewModal'
 
 describe('ReviewModal', () => {
@@ -13,7 +13,8 @@ describe('ReviewModal', () => {
       />
     )
     
-    expect(screen.getByText(/review company/i)).toBeInTheDocument()
+    // The modal shows "Mark as Reviewed" when there's no existing review
+    expect(screen.getByText(/mark as reviewed/i)).toBeInTheDocument()
   })
 
   it('does not render when closed', () => {
@@ -26,7 +27,7 @@ describe('ReviewModal', () => {
       />
     )
     
-    expect(screen.queryByText(/review company/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/mark as reviewed/i)).not.toBeInTheDocument()
   })
 
   it('displays existing review when provided', () => {

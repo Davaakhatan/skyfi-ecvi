@@ -151,6 +151,7 @@ locust -f load_tests/locustfile.py --host=http://localhost:8000
 - **[Operator Troubleshooting](docs/OPERATOR_TROUBLESHOOTING.md)** - Troubleshooting guide for operators
 - **[Production Readiness Checklist](docs/PRODUCTION_READINESS_CHECKLIST.md)** - Pre-deployment checklist
 - **[Project Summary](docs/PROJECT_SUMMARY.md)** - Complete project overview and status
+- **[Frontend Testing Guide](frontend/TESTING.md)** - Frontend testing with backend integration
 
 ### Memory Bank
 

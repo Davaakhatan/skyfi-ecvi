@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '../../test/utils'
+import { render, screen } from '../../test/utils/test-utils'
 import RiskScoreBadge from '../RiskScoreBadge'
 
 describe('RiskScoreBadge', () => {
@@ -23,7 +23,8 @@ describe('RiskScoreBadge', () => {
 
   it('displays correct risk category', () => {
     render(<RiskScoreBadge score={75} category="HIGH" />)
-    const category = screen.getByText('HIGH')
+    // The component displays category in lowercase
+    const category = screen.getByText('high')
     expect(category).toBeInTheDocument()
   })
 })

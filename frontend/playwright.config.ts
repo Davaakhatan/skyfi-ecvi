@@ -26,6 +26,8 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     /* Video on failure */
     video: 'retain-on-failure',
+    /* API base URL for backend */
+    baseURL_API: process.env.PLAYWRIGHT_TEST_API_URL || 'http://localhost:8000',
   },
 
   /* Configure projects for major browsers */
@@ -45,11 +47,23 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  webServer: [
+    {
+      command: 'cd ../backend && python -m venv venv 2>/dev/null || true && source venv/bin/activate && pip install -e ".[dev]" -q && export DATABASE_URL="${DATABASE_URL:-sqlite:///./test.db}" && export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}" && export SECRET_KEY="${SECRET_KEY:-test-secret-key-for-frontend-tests-minimum-32-chars}" && export CORS_ORIGINS="http://localhost:5173" && export ENVIRONMENT="test" && uvicorn app.main:app --host 0.0.0.0 --port 8000',
+      url: 'http://localhost:8000/api/v1/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      cwd: process.cwd(),
+    },
+    {
+      command: 'npm run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  ],
 });
-

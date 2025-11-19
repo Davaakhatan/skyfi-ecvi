@@ -28,7 +28,7 @@ describe('authStore', () => {
     }
     const token = 'test-token'
 
-    useAuthStore.getState().setAuth(user, token)
+    useAuthStore.getState().setUser(user, token)
 
     const state = useAuthStore.getState()
     expect(state.user).toEqual(user)
@@ -46,7 +46,7 @@ describe('authStore', () => {
       is_active: true,
       created_at: '2024-01-01T00:00:00Z',
     }
-    useAuthStore.getState().setAuth(user, 'token')
+    useAuthStore.getState().setUser(user, 'token')
 
     // Then logout
     useAuthStore.getState().logout()

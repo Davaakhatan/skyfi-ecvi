@@ -133,24 +133,31 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
       
-      - name: Run E2E tests
+      - name: Set up Python for backend
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Run E2E tests with backend
         working-directory: frontend
         env:
           PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+          PLAYWRIGHT_TEST_API_URL: http://localhost:8000
+          DATABASE_URL: sqlite:///./test.db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-e2e-tests-minimum-32-chars
+          CORS_ORIGINS: http://localhost:5173
+          ENVIRONMENT: test
         run: |
-          # Start backend server in background
-          cd ../backend
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          BACKEND_PID=$!
-          cd ../frontend
-          # Wait for backend to be ready
-          sleep 5
-          # Run E2E tests
+          # Run E2E tests (Playwright will start backend and frontend via webServer config)
           npm run test:e2e || true
-          # Kill backend server
-          kill $BACKEND_PID || true
         continue-on-error: true
 
   build-verification:
