@@ -48,7 +48,11 @@ class TestDataCollectionService:
             call_count[0] += 1
             raise Exception("Test error")
         
-        result = service._retry_request(fail_func, max_retries=2)
-        assert result is None
-        assert call_count[0] == 2
+        # Should raise exception after all retries
+        try:
+            result = service._retry_request(fail_func, max_retries=2)
+            assert False, "Should have raised exception"
+        except Exception as e:
+            assert str(e) == "Test error"
+            assert call_count[0] == 2
 

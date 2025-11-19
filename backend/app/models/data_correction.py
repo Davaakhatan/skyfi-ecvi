@@ -45,7 +45,7 @@ class DataCorrection(Base):
     previous_correction_id = Column(UUID(as_uuid=True), ForeignKey("data_corrections.id"), nullable=True)  # Link to previous correction
     
     # Metadata
-    metadata = Column(JSON, nullable=True)  # Additional metadata (source, confidence, etc.)
+    correction_metadata = Column(JSON, nullable=True)  # Additional metadata (source, confidence, etc.)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     

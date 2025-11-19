@@ -10,9 +10,9 @@ from app.utils.security import (
     validate_password_strength,
     validate_secret_key,
     sanitize_html,
-    validate_url,
     generate_secure_token
 )
+from app.utils.validators import validate_url
 
 
 class TestSecurityUtils:

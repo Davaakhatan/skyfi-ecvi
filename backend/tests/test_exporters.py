@@ -57,12 +57,26 @@ class TestReportExporter:
     def test_export_to_html(self):
         """Test exporting report to HTML"""
         report_data = {
-            "company_name": "Test Company",
-            "risk_score": 50,
-            "verification_status": "COMPLETED"
+            "report_metadata": {
+                "company_name": "Test Company",
+                "report_id": "test-123"
+            },
+            "company_info": {
+                "legal_name": "Test Company"
+            },
+            "risk_assessment": {
+                "risk_score": 50,
+                "risk_category": "MEDIUM"
+            },
+            "summary": {
+                "total_data_points": 10,
+                "verified_data_points": 8,
+                "verification_rate": 80,
+                "key_findings": []
+            }
         }
         
-        result = ReportExporter.export_html(report_data, print_friendly=True)
+        result = ReportExporter.export_print_friendly(report_data)
         
         assert isinstance(result, str)
         html_str = result.lower()

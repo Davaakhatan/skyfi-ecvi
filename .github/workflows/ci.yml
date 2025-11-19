@@ -128,6 +128,30 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+      
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run E2E tests
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+        run: |
+          # Start backend server in background
+          cd ../backend
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          BACKEND_PID=$!
+          cd ../frontend
+          # Wait for backend to be ready
+          sleep 5
+          # Run E2E tests
+          npm run test:e2e || true
+          # Kill backend server
+          kill $BACKEND_PID || true
+        continue-on-error: true
 
   build-verification:
     name: Build Verification

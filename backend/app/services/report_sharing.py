@@ -141,8 +141,18 @@ class ReportSharingService:
             return None
         
         # Check if expired
-        if shared_report.expires_at and shared_report.expires_at < datetime.utcnow():
-            return None
+        if shared_report.expires_at:
+            # Handle timezone-aware and timezone-naive datetimes
+            expires_at = shared_report.expires_at
+            now = datetime.utcnow()
+            # Make both timezone-aware or both naive for comparison
+            if expires_at.tzinfo is not None and now.tzinfo is None:
+                from datetime import timezone
+                now = now.replace(tzinfo=timezone.utc)
+            elif expires_at.tzinfo is None and now.tzinfo is not None:
+                expires_at = expires_at.replace(tzinfo=now.tzinfo)
+            if expires_at < now:
+                return None
         
         # Update access statistics
         try:

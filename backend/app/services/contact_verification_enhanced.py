@@ -135,8 +135,9 @@ class EnhancedContactVerificationService:
         name: str
     ) -> ContactVerificationResult:
         """Verify name against public records and social profiles"""
-        # Basic name validation
-        name_valid = len(name.strip()) >= 2 and name.strip().isalpha()
+        # Basic name validation (allow spaces and common name characters)
+        name_cleaned = name.strip()
+        name_valid = len(name_cleaned) >= 2 and all(c.isalpha() or c.isspace() or c in ["-", "'", "."] for c in name_cleaned)
         
         # TODO: Integrate with public records API (e.g., Whitepages, Spokeo)
         # TODO: Integrate with social profile APIs (e.g., LinkedIn, Facebook Graph API)

@@ -23,7 +23,21 @@ def log_audit_event(
     user_agent = None
     
     if request:
-        ip_address = request.client.host if request.client else None
+        # Get IP address - handle test client and proxy scenarios
+        ip_address = None
+        if request.client:
+            ip = request.client.host
+            # TestClient uses "testclient" as hostname, convert to valid IP
+            if ip == "testclient":
+                ip_address = "127.0.0.1"
+            elif ip and ip != "testclient":
+                ip_address = ip
+        # Also check X-Forwarded-For header for proxy scenarios
+        if not ip_address:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                # Take first IP from comma-separated list
+                ip_address = forwarded.split(",")[0].strip()
         user_agent = request.headers.get("user-agent")
     
     audit_log = AuditLog(

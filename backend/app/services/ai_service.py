@@ -13,14 +13,47 @@ logger = logging.getLogger(__name__)
 try:
     from langchain.agents import AgentExecutor, create_openai_tools_agent
     from langchain_openai import ChatOpenAI
-    from langchain_anthropic import ChatAnthropic
     from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
     from langchain.tools import Tool
     from langchain_core.messages import HumanMessage, AIMessage
     LANGCHAIN_AVAILABLE = True
-except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    try:
+        from langchain_anthropic import ChatAnthropic
+        ANTHROPIC_AVAILABLE = True
+    except ImportError:
+        logger.info("Anthropic not available - will use OpenAI only")
+        ChatAnthropic = None
+except ImportError as e:
     LANGCHAIN_AVAILABLE = False
-    logger.warning("LangChain not available - AI features will be disabled")
+    ANTHROPIC_AVAILABLE = False
+    ChatAnthropic = None
+    # Create dummy classes for type hints when LangChain is not available
+    class Tool:
+        def __init__(self, *args, **kwargs):
+            pass
+    class AgentExecutor:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ChatPromptTemplate:
+        @staticmethod
+        def from_messages(*args, **kwargs):
+            return None
+    class MessagesPlaceholder:
+        def __init__(self, *args, **kwargs):
+            pass
+    class HumanMessage:
+        def __init__(self, *args, **kwargs):
+            pass
+    class AIMessage:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ChatOpenAI:
+        def __init__(self, *args, **kwargs):
+            pass
+    def create_openai_tools_agent(*args, **kwargs):
+        return None
+    logger.warning(f"LangChain not available - AI features will be disabled: {e}")
 
 
 class LLMClient:
@@ -32,6 +65,9 @@ class LLMClient:
     
     def _initialize_llm(self):
         """Initialize LLM based on provider"""
+        if not LANGCHAIN_AVAILABLE:
+            logger.warning("LangChain not available - LLM features disabled")
+            return None
         if self.provider == "openai":
             if not settings.OPENAI_API_KEY:
                 logger.warning("OpenAI API key not set, LLM features will be disabled")
@@ -42,6 +78,9 @@ class LLMClient:
                 api_key=settings.OPENAI_API_KEY
             )
         elif self.provider == "anthropic":
+            if not ANTHROPIC_AVAILABLE or ChatAnthropic is None:
+                logger.warning("Anthropic not available - install langchain-anthropic or use OpenAI")
+                return None
             if not settings.ANTHROPIC_API_KEY:
                 logger.warning("Anthropic API key not set, LLM features will be disabled")
                 return None
@@ -329,8 +368,12 @@ class DataVerifierAgent:
     
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
-        self.tools = self._create_tools()
-        self.agent = self._create_agent()
+        if not LANGCHAIN_AVAILABLE:
+            self.tools = []
+            self.agent = None
+        else:
+            self.tools = self._create_tools()
+            self.agent = self._create_agent()
     
     def _create_tools(self) -> List[Tool]:
         """Create tools for the verifier agent"""

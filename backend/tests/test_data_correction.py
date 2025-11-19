@@ -129,8 +129,8 @@ class TestDataCorrectionService:
         
         assert rejected.status == CorrectionStatus.REJECTED
         assert rejected.approved_by == test_user.id
-        assert rejected.metadata is not None
-        assert rejected.metadata.get("rejection_reason") == "Invalid correction"
+        assert rejected.correction_metadata is not None
+        assert rejected.correction_metadata.get("rejection_reason") == "Invalid correction"
     
     def test_get_correction_history(self, db_session, test_company, test_user):
         """Test getting correction history"""

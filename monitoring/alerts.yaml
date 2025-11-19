@@ -1,0 +1,107 @@
+# Prometheus Alerting Rules for ECVI
+# Add this to your Prometheus configuration
+
+groups:
+  - name: ecvi_alerts
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "High error rate detected in ECVI backend"
+          description: "Error rate is {{ $value }} errors/sec. This exceeds the threshold of 0.1 errors/sec."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High latency detected in ECVI backend"
+          description: "95th percentile latency is {{ $value }}s. This exceeds the threshold of 1s."
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: (db_connections_active / (db_connections_active + db_connections_idle)) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of database connections are active."
+
+      - alert: CeleryTaskFailureRate
+        expr: rate(celery_tasks_total{status="FAILURE"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: celery
+        annotations:
+          summary: "High Celery task failure rate"
+          description: "Task failure rate is {{ $value }} failures/sec."
+
+      - alert: ServiceDown
+        expr: up{job="ecvi-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "ECVI backend service is down"
+          description: "The backend service has been down for more than 2 minutes."
+
+      - alert: DatabaseDown
+        expr: up{job="ecvi-postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "ECVI database is down"
+          description: "The PostgreSQL database has been down for more than 2 minutes."
+
+      - alert: RedisDown
+        expr: up{job="ecvi-redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "ECVI Redis is down"
+          description: "The Redis service has been down for more than 2 minutes."
+
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes{container="backend"} / container_spec_memory_limit_bytes{container="backend"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High memory usage in backend"
+          description: "Memory usage is {{ $value | humanizePercentage }} of the limit."
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container="backend"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High CPU usage in backend"
+          description: "CPU usage is {{ $value | humanizePercentage }}."
+
+      - alert: CeleryQueueBacklog
+        expr: celery_queue_length > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "Celery task queue backlog"
+          description: "There are {{ $value }} tasks waiting in the queue."
+

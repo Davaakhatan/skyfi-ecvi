@@ -35,7 +35,7 @@ class TestBusinessDirectoryService:
     def test_search_yelp_business(self):
         """Test Yelp Business search"""
         service = BusinessDirectoryService()
-        result = service.search_yelp_business("Example Company", "New York")
+        result = service.search_yelp("Example Company", "New York")
         
         assert isinstance(result, dict)
         assert "success" in result

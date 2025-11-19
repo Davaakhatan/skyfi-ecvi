@@ -133,7 +133,8 @@ class RiskCalculator:
         if ssl_valid is False:
             risk += 30
         elif ssl_valid is True:
-            risk -= 15
+            # SSL valid reduces risk, but don't go below 0
+            risk = max(0, risk - 15)
         
         # Suspicious keywords increase risk
         risk += min(30, suspicious_keywords * 10)

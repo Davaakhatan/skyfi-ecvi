@@ -117,6 +117,8 @@ def sanitize_for_sql(text: str) -> str:
         r'execute\s*\(',
         r'script\s*>',
         r'<\s*script',
+        r'drop\s+table',  # Add DROP TABLE pattern
+        r';\s*--',  # Add comment injection pattern
     ]
     
     text_lower = text_str.lower()
@@ -153,6 +155,14 @@ def validate_url(url: str) -> Tuple[bool, Optional[str]]:
     if not url:
         return False, "URL is required"
     
+    url_lower = url.lower().strip()
+    
+    # Check for dangerous protocols FIRST (before format validation)
+    dangerous_protocols = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:']
+    for protocol in dangerous_protocols:
+        if url_lower.startswith(protocol):
+            return False, f"Dangerous protocol detected: {protocol}"
+    
     # Basic URL format validation
     url_pattern = re.compile(
         r'^https?://'  # http:// or https://
@@ -164,13 +174,6 @@ def validate_url(url: str) -> Tuple[bool, Optional[str]]:
     
     if not url_pattern.match(url):
         return False, "Invalid URL format"
-    
-    # Check for dangerous protocols
-    dangerous_protocols = ['javascript:', 'data:', 'vbscript:', 'file:']
-    url_lower = url.lower()
-    for protocol in dangerous_protocols:
-        if url_lower.startswith(protocol):
-            return False, f"Dangerous protocol detected: {protocol}"
     
     return True, None
 

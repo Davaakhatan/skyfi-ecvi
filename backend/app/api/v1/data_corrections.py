@@ -38,9 +38,9 @@ class CorrectionUpdate(BaseModel):
 
 class CorrectionResponse(BaseModel):
     """Schema for returning a correction"""
-    id: UUID
-    company_id: UUID
-    company_data_id: Optional[UUID]
+    id: str
+    company_id: str
+    company_data_id: Optional[str]
     field_name: str
     field_type: str
     old_value: Optional[str]
@@ -48,9 +48,9 @@ class CorrectionResponse(BaseModel):
     correction_reason: Optional[str]
     status: CorrectionStatus
     version: str
-    corrected_by: UUID
+    corrected_by: str
     corrector_name: str
-    approved_by: Optional[UUID]
+    approved_by: Optional[str]
     approver_name: Optional[str]
     approved_at: Optional[datetime]
     created_at: datetime
@@ -61,12 +61,11 @@ class CorrectionResponse(BaseModel):
 
 
 @router.post("/company/{company_id}/corrections", response_model=CorrectionResponse, status_code=status.HTTP_201_CREATED)
-@require_roles(["admin", "compliance", "operator"])
 async def create_correction(
     company_id: UUID,
     correction_data: CorrectionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles(["admin", "compliance", "operator"])),
     request: Request = None
 ):
     """Create a new data correction"""
@@ -104,7 +103,7 @@ async def create_correction(
             correction_reason=correction_data.correction_reason,
             corrected_by=current_user.id,
             company_data_id=correction_data.company_data_id,
-            metadata=correction_data.metadata
+            metadata=correction_data.metadata if hasattr(correction_data, 'metadata') else None
         )
     except Exception as e:
         raise HTTPException(
@@ -133,9 +132,9 @@ async def create_correction(
     corrector_name = current_user.username if current_user.username else current_user.email
     
     return CorrectionResponse(
-        id=correction.id,
-        company_id=correction.company_id,
-        company_data_id=correction.company_data_id,
+        id=str(correction.id),
+        company_id=str(correction.company_id),
+        company_data_id=str(correction.company_data_id) if correction.company_data_id else None,
         field_name=correction.field_name,
         field_type=correction.field_type,
         old_value=correction.old_value,
@@ -143,9 +142,9 @@ async def create_correction(
         correction_reason=correction.correction_reason,
         status=correction.status,
         version=correction.version,
-        corrected_by=correction.corrected_by,
+        corrected_by=str(correction.corrected_by),
         corrector_name=corrector_name,
-        approved_by=correction.approved_by,
+        approved_by=str(correction.approved_by) if correction.approved_by else None,
         approver_name=None,
         approved_at=correction.approved_at,
         created_at=correction.created_at,
@@ -154,11 +153,10 @@ async def create_correction(
 
 
 @router.post("/corrections/{correction_id}/approve", response_model=CorrectionResponse)
-@require_roles(["admin", "compliance"])
 async def approve_correction(
     correction_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles(["admin", "compliance"])),
     request: Request = None
 ):
     """Approve and apply a correction"""
@@ -205,9 +203,9 @@ async def approve_correction(
     corrector_name = corrector.username if corrector and corrector.username else corrector.email if corrector else "Unknown"
     
     return CorrectionResponse(
-        id=correction.id,
-        company_id=correction.company_id,
-        company_data_id=correction.company_data_id,
+        id=str(correction.id),
+        company_id=str(correction.company_id),
+        company_data_id=str(correction.company_data_id) if correction.company_data_id else None,
         field_name=correction.field_name,
         field_type=correction.field_type,
         old_value=correction.old_value,
@@ -215,9 +213,9 @@ async def approve_correction(
         correction_reason=correction.correction_reason,
         status=correction.status,
         version=correction.version,
-        corrected_by=correction.corrected_by,
+        corrected_by=str(correction.corrected_by),
         corrector_name=corrector_name,
-        approved_by=correction.approved_by,
+        approved_by=str(correction.approved_by) if correction.approved_by else None,
         approver_name=approver_name,
         approved_at=correction.approved_at,
         created_at=correction.created_at,
@@ -226,12 +224,11 @@ async def approve_correction(
 
 
 @router.post("/corrections/{correction_id}/reject", response_model=CorrectionResponse)
-@require_roles(["admin", "compliance"])
 async def reject_correction(
     correction_id: UUID,
     rejection_reason: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles(["admin", "compliance"])),
     request: Request = None
 ):
     """Reject a correction"""
@@ -278,9 +275,9 @@ async def reject_correction(
     corrector_name = corrector.username if corrector and corrector.username else corrector.email if corrector else "Unknown"
     
     return CorrectionResponse(
-        id=correction.id,
-        company_id=correction.company_id,
-        company_data_id=correction.company_data_id,
+        id=str(correction.id),
+        company_id=str(correction.company_id),
+        company_data_id=str(correction.company_data_id) if correction.company_data_id else None,
         field_name=correction.field_name,
         field_type=correction.field_type,
         old_value=correction.old_value,
@@ -288,9 +285,9 @@ async def reject_correction(
         correction_reason=correction.correction_reason,
         status=correction.status,
         version=correction.version,
-        corrected_by=correction.corrected_by,
+        corrected_by=str(correction.corrected_by),
         corrector_name=corrector_name,
-        approved_by=correction.approved_by,
+        approved_by=str(correction.approved_by) if correction.approved_by else None,
         approver_name=approver_name,
         approved_at=correction.approved_at,
         created_at=correction.created_at,
@@ -342,9 +339,9 @@ async def get_correction_history(
             approver_name = approver.username if approver and approver.username else approver.email if approver else None
         
         response.append(CorrectionResponse(
-            id=correction.id,
-            company_id=correction.company_id,
-            company_data_id=correction.company_data_id,
+            id=str(correction.id),
+            company_id=str(correction.company_id),
+            company_data_id=str(correction.company_data_id) if correction.company_data_id else None,
             field_name=correction.field_name,
             field_type=correction.field_type,
             old_value=correction.old_value,
@@ -352,9 +349,9 @@ async def get_correction_history(
             correction_reason=correction.correction_reason,
             status=correction.status,
             version=correction.version,
-            corrected_by=correction.corrected_by,
+            corrected_by=str(correction.corrected_by),
             corrector_name=corrector_name,
-            approved_by=correction.approved_by,
+            approved_by=str(correction.approved_by) if correction.approved_by else None,
             approver_name=approver_name,
             approved_at=correction.approved_at,
             created_at=correction.created_at,
@@ -365,13 +362,12 @@ async def get_correction_history(
 
 
 @router.post("/company/{company_id}/corrections/{correction_id}/re-run", status_code=status.HTTP_202_ACCEPTED)
-@require_roles(["admin", "compliance", "operator"])
 async def re_run_analysis_with_corrections(
     company_id: UUID,
     correction_id: UUID,
     timeout_hours: float = Query(2.0, ge=0.1, le=24.0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles(["admin", "compliance", "operator"])),
     request: Request = None
 ):
     """Re-run verification analysis after applying corrections"""

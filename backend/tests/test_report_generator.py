@@ -30,8 +30,8 @@ class TestReportGenerator:
         
         assert report is not None
         assert "company_info" in report
-        assert "verification_summary" in report
         assert "risk_assessment" in report
+        assert "verification_details" in report
         assert report["company_info"]["legal_name"] == test_company.legal_name
     
     def test_generate_report_no_data(self, db_session, test_company, test_verification_result):

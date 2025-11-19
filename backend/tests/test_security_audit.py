@@ -1,17 +1,13 @@
 """Security audit tests"""
 
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.core.security import create_access_token, decode_access_token
 from app.utils.security import (
     validate_password_strength,
     sanitize_html,
-    validate_url,
     sanitize_for_sql
 )
-
-client = TestClient(app)
+from app.utils.validators import validate_url
 
 
 class TestAuthenticationSecurity:
@@ -76,14 +72,15 @@ class TestInputValidationSecurity:
         # SQL injection attempt
         malicious = "'; DROP TABLE users; --"
         
-        # Should raise ValueError or sanitize
+        # Should raise ValueError (expected behavior - rejects dangerous input)
         try:
             sanitized = sanitize_for_sql(malicious)
-            # If it doesn't raise, should be sanitized
-            assert "DROP" not in sanitized or "';" not in sanitized
+            # If it doesn't raise, should be sanitized (both should be removed)
+            assert "DROP" not in sanitized and "';" not in sanitized
         except ValueError:
             # Expected behavior - should reject dangerous input
-            pass
+            # This is the correct behavior, so test passes
+            assert True
     
     def test_url_validation(self):
         """Test URL validation for security"""
@@ -94,6 +91,7 @@ class TestInputValidationSecurity:
         # Dangerous protocol
         valid, error = validate_url("javascript:alert('xss')")
         assert valid is False
+        assert error is not None
         assert "Dangerous protocol" in error
         
         # Invalid URL
@@ -104,9 +102,10 @@ class TestInputValidationSecurity:
 class TestAPISecurity:
     """Test API security"""
     
-    def test_unauthorized_access(self, db_session, override_get_db):
+    def test_unauthorized_access(self, client, db_session, override_get_db):
         """Test that unauthorized requests are rejected"""
         from app.db.database import get_db
+        from app.main import app
         
         app.dependency_overrides[get_db] = override_get_db
         
@@ -116,9 +115,10 @@ class TestAPISecurity:
         
         app.dependency_overrides.clear()
     
-    def test_invalid_token(self, db_session, override_get_db):
+    def test_invalid_token(self, client, db_session, override_get_db):
         """Test that invalid tokens are rejected"""
         from app.db.database import get_db
+        from app.main import app
         
         app.dependency_overrides[get_db] = override_get_db
         
@@ -131,10 +131,11 @@ class TestAPISecurity:
         
         app.dependency_overrides.clear()
     
-    def test_role_based_access(self, db_session, override_get_db, test_user, test_admin_user):
+    def test_role_based_access(self, client, db_session, override_get_db, test_user, test_admin_user):
         """Test that role-based access control works"""
         from app.db.database import get_db
         from app.core.auth import get_current_active_user
+        from app.main import app
         
         app.dependency_overrides[get_db] = override_get_db
         
@@ -176,7 +177,7 @@ class TestDataSecurity:
 class TestCORSecurity:
     """Test CORS configuration"""
     
-    def test_cors_headers(self):
+    def test_cors_headers(self, client):
         """Test that CORS headers are properly configured"""
         response = client.options(
             "/api/v1/companies/",

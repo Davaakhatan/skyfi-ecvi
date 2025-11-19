@@ -2,17 +2,13 @@
 
 import pytest
 import time
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.main import app
 from app.core.security import create_access_token
 from app.models.user import User
 from app.models.company import Company
 from app.models.verification_result import VerificationResult
 from datetime import datetime, timedelta
-
-client = TestClient(app)
 
 
 @pytest.fixture
@@ -53,7 +49,7 @@ class TestAPIPerformance:
     MAX_API_RESPONSE_TIME = 0.5  # seconds
     MAX_REPORT_RESPONSE_TIME = 30.0  # seconds
     
-    def test_companies_list_performance(self, db_session, test_companies, auth_headers):
+    def test_companies_list_performance(self, client, db_session, test_companies, auth_headers):
         """Test that companies list endpoint responds within 2 seconds"""
         start_time = time.time()
         response = client.get(
@@ -67,7 +63,7 @@ class TestAPIPerformance:
         assert elapsed_time < self.MAX_LIST_RESPONSE_TIME, \
             f"Companies list took {elapsed_time:.2f}s, expected < {self.MAX_LIST_RESPONSE_TIME}s"
     
-    def test_get_company_performance(self, db_session, test_companies, auth_headers):
+    def test_get_company_performance(self, client, db_session, test_companies, auth_headers):
         """Test that get company endpoint responds within 500ms"""
         company_id = str(test_companies[0].id)
         
@@ -82,7 +78,7 @@ class TestAPIPerformance:
         assert elapsed_time < self.MAX_API_RESPONSE_TIME, \
             f"Get company took {elapsed_time:.2f}s, expected < {self.MAX_API_RESPONSE_TIME}s"
     
-    def test_create_company_performance(self, db_session, auth_headers):
+    def test_create_company_performance(self, client, db_session, auth_headers):
         """Test that create company endpoint responds within 500ms"""
         company_data = {
             "legal_name": "Performance Test Company",
@@ -104,7 +100,7 @@ class TestAPIPerformance:
             f"Create company took {elapsed_time:.2f}s, expected < {self.MAX_API_RESPONSE_TIME}s"
     
     def test_verification_result_performance(
-        self, db_session, test_company, test_verification_result, auth_headers
+        self, client, db_session, test_company, test_verification_result, auth_headers
     ):
         """Test that get verification result endpoint responds within 500ms"""
         company_id = str(test_company.id)
@@ -123,7 +119,7 @@ class TestAPIPerformance:
                 f"Get verification result took {elapsed_time:.2f}s, expected < {self.MAX_API_RESPONSE_TIME}s"
     
     def test_report_generation_performance(
-        self, db_session, test_company, test_verification_result, auth_headers
+        self, client, db_session, test_company, test_verification_result, auth_headers
     ):
         """Test that report generation responds within 30 seconds"""
         company_id = str(test_company.id)
@@ -143,7 +139,7 @@ class TestAPIPerformance:
                 f"Report generation took {elapsed_time:.2f}s, expected < {self.MAX_REPORT_RESPONSE_TIME}s"
     
     def test_companies_list_with_filters_performance(
-        self, db_session, test_companies, auth_headers
+        self, client, db_session, test_companies, auth_headers
     ):
         """Test that filtered companies list responds within 2 seconds"""
         start_time = time.time()
@@ -162,7 +158,7 @@ class TestAPIPerformance:
         assert elapsed_time < self.MAX_LIST_RESPONSE_TIME, \
             f"Filtered companies list took {elapsed_time:.2f}s, expected < {self.MAX_LIST_RESPONSE_TIME}s"
     
-    def test_audit_logs_performance(self, db_session, test_user, auth_headers):
+    def test_audit_logs_performance(self, client, db_session, test_user, auth_headers):
         """Test that audit logs endpoint responds within 500ms"""
         # Create test audit logs
         from app.models.audit import AuditLog
@@ -251,7 +247,7 @@ class TestDatabaseQueryPerformance:
 class TestCachingPerformance:
     """Performance tests for caching"""
     
-    def test_cached_company_response(self, db_session, test_company, auth_headers):
+    def test_cached_company_response(self, client, db_session, test_company, auth_headers):
         """Test that cached responses work correctly"""
         company_id = str(test_company.id)
         
@@ -281,7 +277,7 @@ class TestBenchmarkPerformance:
     """Benchmark tests using pytest-benchmark"""
     
     def test_companies_list_benchmark(
-        self, benchmark, db_session, test_companies, auth_headers
+        self, client, benchmark, db_session, test_companies, auth_headers
     ):
         """Benchmark companies list endpoint"""
         def get_companies():
@@ -295,7 +291,7 @@ class TestBenchmarkPerformance:
         assert result.status_code == 200
     
     def test_get_company_benchmark(
-        self, benchmark, db_session, test_companies, auth_headers
+        self, client, benchmark, db_session, test_companies, auth_headers
     ):
         """Benchmark get company endpoint"""
         company_id = str(test_companies[0].id)

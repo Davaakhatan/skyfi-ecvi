@@ -9,11 +9,12 @@ from app.models.verification_result import VerificationStatus, RiskCategory
 class TestVerificationService:
     """Test VerificationService"""
     
-    def test_verify_company_creates_result(self, db_session, test_company):
+    @pytest.mark.asyncio
+    async def test_verify_company_creates_result(self, db_session, test_company):
         """Test that verify_company creates a verification result"""
         service = VerificationService(db_session)
         
-        result = service.verify_company(test_company.id)
+        result = await service.verify_company(test_company.id, timeout_hours=0.1)
         
         assert result is not None
         assert result.company_id == test_company.id

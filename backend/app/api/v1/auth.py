@@ -43,6 +43,18 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """Convert ORM object to response model with proper UUID serialization"""
+        return cls(
+            id=str(obj.id),
+            email=obj.email,
+            username=obj.username,
+            role=obj.role,
+            is_active=obj.is_active,
+            mfa_enabled=getattr(obj, 'mfa_enabled', False)
+        )
 
 
 @router.post("/login", response_model=Token)
@@ -95,6 +107,14 @@ async def login(
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get current user information"""
+    return UserResponse.from_orm(current_user)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -179,15 +199,7 @@ async def register(
         details={"username": new_user.username, "role": new_user.role}
     )
     
-    return new_user
-
-
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get current user information"""
-    return current_user
+    return UserResponse.from_orm(new_user)
 
 
 @router.post("/logout")

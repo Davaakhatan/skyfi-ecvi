@@ -12,9 +12,10 @@ class TestConfidenceScoringService:
         service = ConfidenceScoringService()
         
         confidence = service.calculate_source_confidence(
+            source="companies_house",
             source_type="official_registry",
             data_quality=0.9,
-            cross_references=5
+            verification_status=True
         )
         
         assert confidence >= 0.8
@@ -24,9 +25,10 @@ class TestConfidenceScoringService:
         service = ConfidenceScoringService()
         
         confidence = service.calculate_source_confidence(
-            source_type="user_submitted",
+            source="user_input",
+            source_type="user_provided",
             data_quality=0.3,
-            cross_references=0
+            verification_status=False
         )
         
         assert confidence < 0.5
@@ -35,8 +37,17 @@ class TestConfidenceScoringService:
         """Test field confidence calculation"""
         service = ConfidenceScoringService()
         
-        source_confidences = [0.9, 0.8, 0.7]
-        confidence = service.calculate_field_confidence(source_confidences)
+        sources = [
+            {"source": "api1", "value": "Company Inc", "confidence": 0.9},
+            {"source": "api2", "value": "Company Inc", "confidence": 0.8},
+            {"source": "api3", "value": "Company Inc", "confidence": 0.7}
+        ]
+        confidence = service.calculate_field_confidence(
+            field_name="legal_name",
+            field_value="Company Inc",
+            sources=sources,
+            cross_validation=True
+        )
         
         assert 0.0 <= confidence <= 1.0
     
@@ -44,14 +55,15 @@ class TestConfidenceScoringService:
         """Test overall confidence calculation"""
         service = ConfidenceScoringService()
         
-        confidence = service.calculate_overall_confidence(
+        confidence = service.calculate_overall_verification_confidence(
             dns_confidence=0.9,
             registration_confidence=0.8,
             contact_confidence=0.7,
-            address_confidence=0.85
+            address_confidence=0.85,
+            discrepancy_score=0.9
         )
         
-        assert 0.0 <= confidence <= 1.0
-        assert "overall" in confidence
+        assert 0.0 <= confidence["overall_confidence"] <= 1.0
+        assert "overall_confidence" in confidence
         assert "breakdown" in confidence
 

@@ -168,9 +168,9 @@ class DataCorrectionService:
         correction.approved_at = datetime.utcnow()
         
         if rejection_reason:
-            if correction.metadata is None:
-                correction.metadata = {}
-            correction.metadata["rejection_reason"] = rejection_reason
+            if correction.correction_metadata is None:
+                correction.correction_metadata = {}
+            correction.correction_metadata["rejection_reason"] = rejection_reason
         
         try:
             self.db.commit()

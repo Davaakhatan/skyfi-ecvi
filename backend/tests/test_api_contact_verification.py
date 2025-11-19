@@ -1,18 +1,15 @@
 """Tests for contact verification API endpoints"""
 
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.core.security import create_access_token
 from app.db.database import get_db
-
-client = TestClient(app)
+from app.main import app
 
 
 class TestContactVerificationAPI:
     """Test contact verification API endpoints"""
     
-    def test_verify_contact_email(self, db_session, override_get_db, test_user, test_company):
+    def test_verify_contact_email(self, client, db_session, override_get_db, test_user, test_company):
         """Test verifying email contact"""
         from app.core.auth import get_current_active_user
         
@@ -36,7 +33,7 @@ class TestContactVerificationAPI:
         
         app.dependency_overrides.clear()
     
-    def test_verify_contact_phone(self, db_session, override_get_db, test_user, test_company):
+    def test_verify_contact_phone(self, client, db_session, override_get_db, test_user, test_company):
         """Test verifying phone contact"""
         from app.core.auth import get_current_active_user
         
@@ -60,7 +57,7 @@ class TestContactVerificationAPI:
         
         app.dependency_overrides.clear()
     
-    def test_verify_contact_no_contact_info(self, db_session, override_get_db, test_user, test_company):
+    def test_verify_contact_no_contact_info(self, client, db_session, override_get_db, test_user, test_company):
         """Test verifying contact with no contact info provided"""
         from app.core.auth import get_current_active_user
         
@@ -78,7 +75,7 @@ class TestContactVerificationAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_contact_verifications(self, db_session, override_get_db, test_user, test_company):
+    def test_get_contact_verifications(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting contact verifications"""
         from app.core.auth import get_current_active_user
         from app.services.contact_verification_enhanced import EnhancedContactVerificationService
@@ -106,7 +103,7 @@ class TestContactVerificationAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_contact_verification_by_id(self, db_session, override_get_db, test_user, test_company):
+    def test_get_contact_verification_by_id(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting specific contact verification"""
         from app.core.auth import get_current_active_user
         from app.services.contact_verification_enhanced import EnhancedContactVerificationService

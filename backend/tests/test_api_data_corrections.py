@@ -1,18 +1,15 @@
 """Tests for data corrections API endpoints"""
 
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.core.security import create_access_token
 from app.db.database import get_db
-
-client = TestClient(app)
+from app.main import app
 
 
 class TestDataCorrectionsAPI:
     """Test data corrections API endpoints"""
     
-    def test_create_correction(self, db_session, override_get_db, test_user, test_company):
+    def test_create_correction(self, client, db_session, override_get_db, test_user, test_company):
         """Test creating a data correction"""
         from app.core.auth import get_current_active_user
         
@@ -39,7 +36,7 @@ class TestDataCorrectionsAPI:
         
         app.dependency_overrides.clear()
     
-    def test_create_correction_same_value(self, db_session, override_get_db, test_user, test_company):
+    def test_create_correction_same_value(self, client, db_session, override_get_db, test_user, test_company):
         """Test creating correction with same value"""
         from app.core.auth import get_current_active_user
         
@@ -62,7 +59,7 @@ class TestDataCorrectionsAPI:
         
         app.dependency_overrides.clear()
     
-    def test_approve_correction(self, db_session, override_get_db, test_admin_user, test_company):
+    def test_approve_correction(self, client, db_session, override_get_db, test_admin_user, test_company):
         """Test approving a correction"""
         from app.core.auth import get_current_active_user
         from app.services.data_correction import DataCorrectionService
@@ -94,7 +91,7 @@ class TestDataCorrectionsAPI:
         
         app.dependency_overrides.clear()
     
-    def test_reject_correction(self, db_session, override_get_db, test_admin_user, test_company):
+    def test_reject_correction(self, client, db_session, override_get_db, test_admin_user, test_company):
         """Test rejecting a correction"""
         from app.core.auth import get_current_active_user
         from app.services.data_correction import DataCorrectionService
@@ -127,7 +124,7 @@ class TestDataCorrectionsAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_correction_history(self, db_session, override_get_db, test_user, test_company):
+    def test_get_correction_history(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting correction history"""
         from app.core.auth import get_current_active_user
         from app.services.data_correction import DataCorrectionService

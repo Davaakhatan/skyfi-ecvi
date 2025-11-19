@@ -120,3 +120,39 @@ def validate_registration_number(registration_number: str, jurisdiction: Optiona
     
     return True, None
 
+
+def validate_url(url: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate URL format and check for dangerous protocols
+    
+    Args:
+        url: URL to validate
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not url:
+        return False, "URL is required"
+    
+    # Check for dangerous protocols
+    dangerous_protocols = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:']
+    url_lower = url.lower().strip()
+    
+    for protocol in dangerous_protocols:
+        if url_lower.startswith(protocol):
+            return False, f"Dangerous protocol detected: {protocol}"
+    
+    # Basic URL format validation
+    url_pattern = re.compile(
+        r'^https?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
+        r'localhost|'  # localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+        r'(?::\d+)?'  # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    
+    if not url_pattern.match(url):
+        return False, "Invalid URL format"
+    
+    return True, None
+

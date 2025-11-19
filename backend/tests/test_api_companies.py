@@ -2,17 +2,21 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
 from app.core.security import create_access_token
 from app.db.database import get_db
+from app.main import app
 
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    """Create a test client"""
+    return TestClient(app)
 
 
 class TestCompaniesAPI:
     """Test companies API endpoints"""
     
-    def test_create_company(self, db_session, override_get_db, test_user):
+    def test_create_company(self, client, db_session, override_get_db, test_user):
         """Test creating a company"""
         from app.core.auth import get_current_active_user
         
@@ -38,7 +42,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_create_company_invalid_domain(self, db_session, override_get_db, test_user):
+    def test_create_company_invalid_domain(self, client, db_session, override_get_db, test_user):
         """Test creating company with invalid domain"""
         from app.core.auth import get_current_active_user
         
@@ -59,7 +63,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_companies_list(self, db_session, override_get_db, test_user, test_company):
+    def test_get_companies_list(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting companies list"""
         from app.core.auth import get_current_active_user
         
@@ -79,7 +83,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_company_by_id(self, db_session, override_get_db, test_user, test_company):
+    def test_get_company_by_id(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting company by ID"""
         from app.core.auth import get_current_active_user
         
@@ -99,7 +103,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_company_not_found(self, db_session, override_get_db, test_user):
+    def test_get_company_not_found(self, client, db_session, override_get_db, test_user):
         """Test getting non-existent company"""
         from app.core.auth import get_current_active_user
         from uuid import uuid4
@@ -117,7 +121,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_update_company(self, db_session, override_get_db, test_user, test_company):
+    def test_update_company(self, client, db_session, override_get_db, test_user, test_company):
         """Test updating a company"""
         from app.core.auth import get_current_active_user
         
@@ -142,7 +146,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_delete_company(self, db_session, override_get_db, test_user, test_company):
+    def test_delete_company(self, client, db_session, override_get_db, test_user, test_company):
         """Test deleting a company"""
         from app.core.auth import get_current_active_user
         
@@ -166,7 +170,7 @@ class TestCompaniesAPI:
         
         app.dependency_overrides.clear()
     
-    def test_get_companies_with_filters(self, db_session, override_get_db, test_user, test_company):
+    def test_get_companies_with_filters(self, client, db_session, override_get_db, test_user, test_company):
         """Test getting companies with filters"""
         from app.core.auth import get_current_active_user
         

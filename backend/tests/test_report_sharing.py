@@ -11,9 +11,8 @@ class TestReportSharingService:
     
     def test_create_shareable_link(self, db_session, test_company, test_verification_result, test_user):
         """Test creating a shareable report link"""
-        service = ReportSharingService(db_session)
-        
-        link = service.create_shareable_link(
+        link = ReportSharingService.create_shareable_link(
+            db=db_session,
             company_id=test_company.id,
             verification_result_id=test_verification_result.id,
             created_by=test_user.id,
@@ -21,87 +20,99 @@ class TestReportSharingService:
         )
         
         assert link is not None
-        assert link.company_id == test_company.id
-        assert link.share_token is not None
-        assert len(link.share_token) > 0
+        assert "share_token" in link
+        assert link["share_token"] is not None
+        assert len(link["share_token"]) > 0
     
     def test_get_shared_report(self, db_session, test_company, test_verification_result, test_user):
         """Test getting shared report by token"""
-        service = ReportSharingService(db_session)
-        
         # Create shareable link
-        link = service.create_shareable_link(
+        link = ReportSharingService.create_shareable_link(
+            db=db_session,
             company_id=test_company.id,
             verification_result_id=test_verification_result.id,
             created_by=test_user.id
         )
         
         # Get shared report
-        shared = service.get_shared_report(link.share_token)
+        shared = ReportSharingService.get_shared_report(db_session, link["share_token"])
         
         assert shared is not None
-        assert shared.id == link.id
+        assert shared.company_id == test_company.id
         assert shared.is_active is True
     
     def test_get_shared_report_invalid_token(self, db_session):
         """Test getting shared report with invalid token"""
-        service = ReportSharingService(db_session)
-        
-        shared = service.get_shared_report("invalid-token")
+        shared = ReportSharingService.get_shared_report(db_session, "invalid-token")
         assert shared is None
     
     def test_get_shared_report_expired(self, db_session, test_company, test_verification_result, test_user):
         """Test getting expired shared report"""
-        service = ReportSharingService(db_session)
+        from app.services.report_sharing import SharedReport
         
         # Create expired link
-        link = service.create_shareable_link(
+        link = ReportSharingService.create_shareable_link(
+            db=db_session,
             company_id=test_company.id,
             verification_result_id=test_verification_result.id,
             created_by=test_user.id,
-            expires_in_days=-1  # Already expired
+            expires_in_days=1
         )
         
         # Manually set expiration
-        link.expires_at = datetime.utcnow() - timedelta(days=1)
+        shared_report = db_session.query(SharedReport).filter(
+            SharedReport.share_token == link["share_token"]
+        ).first()
+        shared_report.expires_at = datetime.utcnow() - timedelta(days=1)
         db_session.commit()
         
-        shared = service.get_shared_report(link.share_token)
-        assert shared is None or shared.is_active is False
+        shared = ReportSharingService.get_shared_report(db_session, link["share_token"])
+        assert shared is None
     
     def test_increment_access_count(self, db_session, test_company, test_verification_result, test_user):
         """Test incrementing access count"""
-        service = ReportSharingService(db_session)
+        from app.services.report_sharing import SharedReport
         
         # Create shareable link
-        link = service.create_shareable_link(
+        link = ReportSharingService.create_shareable_link(
+            db=db_session,
             company_id=test_company.id,
             verification_result_id=test_verification_result.id,
             created_by=test_user.id
         )
         
-        initial_count = link.access_count
+        shared_report = db_session.query(SharedReport).filter(
+            SharedReport.share_token == link["share_token"]
+        ).first()
+        initial_count = shared_report.access_count
         
-        # Increment access
-        service.increment_access_count(link.share_token)
+        # Increment access (this happens automatically in get_shared_report)
+        ReportSharingService.get_shared_report(db_session, link["share_token"])
         
-        db_session.refresh(link)
-        assert link.access_count == initial_count + 1
+        db_session.refresh(shared_report)
+        assert shared_report.access_count == initial_count + 1
     
     def test_deactivate_shareable_link(self, db_session, test_company, test_verification_result, test_user):
         """Test deactivating a shareable link"""
-        service = ReportSharingService(db_session)
+        from app.services.report_sharing import SharedReport
         
         # Create shareable link
-        link = service.create_shareable_link(
+        link = ReportSharingService.create_shareable_link(
+            db=db_session,
             company_id=test_company.id,
             verification_result_id=test_verification_result.id,
             created_by=test_user.id
         )
         
-        # Deactivate
-        service.deactivate_shareable_link(link.share_token)
+        # Deactivate (revoke)
+        result = ReportSharingService.revoke_shareable_link(
+            db=db_session,
+            share_token=link["share_token"]
+        )
+        assert result is True
         
-        db_session.refresh(link)
-        assert link.is_active is False
+        shared_report = db_session.query(SharedReport).filter(
+            SharedReport.share_token == link["share_token"]
+        ).first()
+        assert shared_report.is_active is False
 

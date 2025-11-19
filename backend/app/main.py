@@ -3,6 +3,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.metrics import MetricsMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -23,6 +26,9 @@ if settings.is_production and not cors_origins:
 
 # Add security headers middleware (first, so it applies to all responses)
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Add metrics middleware (before rate limiting to capture all requests)
+app.add_middleware(MetricsMiddleware)
 
 # Add rate limiting middleware (if enabled)
 if settings.RATE_LIMIT_ENABLED:
@@ -89,9 +95,38 @@ async def health_check():
     }
 
 
-# API routers
-from app.api.v1 import auth, audit, companies, risk_scoring, reports, reviews, data_corrections, contact_verification, security
+# Initialize Sentry for error tracking (if DSN is configured)
+if settings.is_production:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+        from sentry_sdk.integrations.redis import RedisIntegration
+        
+        sentry_dsn = getattr(settings, 'SENTRY_DSN', None)
+        if sentry_dsn:
+            sentry_sdk.init(
+                dsn=sentry_dsn,
+                integrations=[
+                    FastApiIntegration(),
+                    SqlalchemyIntegration(),
+                    RedisIntegration(),
+                ],
+                traces_sample_rate=0.1,  # Sample 10% of transactions
+                environment=settings.ENVIRONMENT,
+                release=settings.APP_VERSION,
+            )
+    except ImportError:
+        pass  # Sentry not installed
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to initialize Sentry: {e}")
 
+# API routers
+from app.api.v1 import auth, audit, companies, risk_scoring, reports, reviews, data_corrections, contact_verification, security, metrics
+
+app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
 app.include_router(companies.router, prefix="/api/v1/companies", tags=["companies"])

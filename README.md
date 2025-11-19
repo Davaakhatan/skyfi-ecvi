@@ -143,6 +143,14 @@ locust -f load_tests/locustfile.py --host=http://localhost:8000
 - **[Performance Testing](docs/PERFORMANCE_TESTING.md)** - Performance testing guide
 - **[Security Audit](docs/SECURITY_AUDIT.md)** - Security measures and audit results
 - **[CI/CD Pipeline](docs/CI_CD.md)** - Continuous integration and deployment
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Monitoring Guide](docs/MONITORING.md)** - Monitoring and observability setup
+- **[Runbooks](docs/RUNBOOKS.md)** - Operational procedures and troubleshooting
+- **[Operator Training](docs/OPERATOR_TRAINING.md)** - Comprehensive operator training guide
+- **[Operator Quick Reference](docs/OPERATOR_QUICK_REFERENCE.md)** - Quick reference for operators
+- **[Operator Troubleshooting](docs/OPERATOR_TROUBLESHOOTING.md)** - Troubleshooting guide for operators
+- **[Production Readiness Checklist](docs/PRODUCTION_READINESS_CHECKLIST.md)** - Pre-deployment checklist
+- **[Project Summary](docs/PROJECT_SUMMARY.md)** - Complete project overview and status
 
 ### Memory Bank
 
@@ -257,5 +265,5 @@ For issues and questions, please refer to the documentation or contact the devel
 
 ---
 
-**Status:** Phase 4 (Testing & Refinement) - 97% Complete  
+**Status:** Phase 4 (Testing & Refinement) - 100% Complete, Phase 5 (Launch) - 89% Complete  
 **Last Updated:** 2025

@@ -13,6 +13,7 @@ from app.core.auth import get_current_active_user
 from app.core.audit import log_audit_event
 from app.services.report_generator import ReportGenerator
 from app.services.report_sharing import ReportSharingService, SharedReport
+from app.services.cache_service import get_cache_service
 from app.utils.exporters import ReportExporter
 from fastapi import Request
 import io
@@ -181,7 +182,7 @@ async def get_verification_report_pdf(
     )
 
 
-@router.post("/company/{company_id}/report/share")
+@router.post("/company/{company_id}/report/share", status_code=status.HTTP_201_CREATED)
 async def create_shareable_link(
     company_id: UUID,
     verification_result_id: Optional[UUID] = Query(None, description="Optional specific verification result ID"),

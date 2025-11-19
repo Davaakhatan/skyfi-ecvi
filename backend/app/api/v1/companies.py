@@ -43,6 +43,19 @@ class CompanyResponse(BaseModel):
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """Convert ORM object to response model with proper UUID serialization"""
+        return cls(
+            id=str(obj.id),
+            legal_name=obj.legal_name,
+            registration_number=obj.registration_number,
+            jurisdiction=obj.jurisdiction,
+            domain=obj.domain,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at
+        )
 
 
 class ReviewInfo(BaseModel):
@@ -191,7 +204,7 @@ async def create_company(
         request=request
     )
     
-    return new_company
+    return CompanyResponse.from_orm(new_company)
 
 
 
@@ -285,17 +298,27 @@ async def get_companies(
     from sqlalchemy.orm import selectinload
     
     # Apply pagination with eager loading for related data
+    # Note: selectinload doesn't support order_by/filter directly, so we'll handle in Python
     companies = query.options(
-        # Eagerly load latest verification result per company
-        selectinload(Company.verification_results).order_by(desc(VerificationResult.created_at)).limit(1),
-        # Eagerly load latest review per company (filtered by current user)
-        selectinload(Company.reviews).filter(Review.reviewer_id == current_user.id).order_by(desc(Review.reviewed_at)).limit(1)
+        # Eagerly load verification results per company
+        selectinload(Company.verification_results),
+        # Eagerly load reviews per company
+        selectinload(Company.reviews)
     ).offset(skip).limit(limit).all()
+    
+    # Sort verification results and reviews in Python (most recent first)
+    for company in companies:
+        if company.verification_results:
+            company.verification_results.sort(key=lambda x: x.created_at if x.created_at else datetime.min, reverse=True)
+        if company.reviews:
+            # Filter by current user and sort
+            company.reviews = [r for r in company.reviews if r.reviewer_id == current_user.id]
+            company.reviews.sort(key=lambda x: x.reviewed_at if x.reviewed_at else datetime.min, reverse=True)
     
     # Pre-fetch all reviewer user IDs to avoid N+1 queries for user lookups
     reviewer_ids = set()
     for company in companies:
-        if company.reviews:
+        if company.reviews and len(company.reviews) > 0:
             reviewer_ids.add(company.reviews[0].reviewer_id)
     
     # Batch fetch all reviewers in one query
@@ -319,9 +342,9 @@ async def get_companies(
                 reviewer_name=reviewer_name
             )
         
-        # Get the most recent verification result (already loaded via eager loading)
+        # Get the most recent verification result (already loaded and sorted via eager loading)
         verification_info = None
-        if company.verification_results:
+        if company.verification_results and len(company.verification_results) > 0:
             verification_result = company.verification_results[0]
             verification_info = VerificationResultInfo(
                 id=str(verification_result.id),
@@ -375,10 +398,11 @@ async def get_company(
             detail="Company not found"
         )
     
-    # Cache for 30 minutes
-    cache.set(cache_key, company, ttl=1800)
+    # Cache for 30 minutes (cache the serialized response)
+    response = CompanyResponse.from_orm(company)
+    cache.set(cache_key, response, ttl=1800)
     
-    return company
+    return response
 
 
 @router.put("/{company_id}", response_model=CompanyResponse)
@@ -467,7 +491,7 @@ async def update_company(
         request=request
     )
     
-    return company
+    return CompanyResponse.from_orm(company)
 
 
 @router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -571,13 +595,13 @@ async def verify_company(
         # Store task_id in details (we could add a task_id field to VerificationResult in future)
         # For now, return the verification result with status IN_PROGRESS
         
-        return verification_result
+        return VerificationResponse.from_orm(verification_result)
     else:
         # Synchronous verification
         verification_service = VerificationService(db)
         verification_result = await verification_service.verify_company(company_id, timeout_hours)
         
-        return verification_result
+        return VerificationResponse.from_orm(verification_result)
 
 
 @router.post("/{company_id}/verify/retrigger", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -640,7 +664,7 @@ async def retrigger_verification(
             detail="Failed to create verification result"
         )
     
-    return verification_result
+    return VerificationResponse.from_orm(verification_result)
 
 
 @router.get("/{company_id}/verification", response_model=VerificationResponse)
@@ -676,10 +700,11 @@ async def get_verification_result(
             detail="No verification result found for this company"
         )
     
-    # Cache for 15 minutes
-    cache.set(cache_key, verification_result, ttl=900)
+    # Cache for 15 minutes (cache the serialized response)
+    response = VerificationResponse.from_orm(verification_result)
+    cache.set(cache_key, response, ttl=900)
     
-    return verification_result
+    return response
 
 
 @router.get("/{company_id}/verification/history", response_model=List[VerificationResponse])
@@ -702,7 +727,7 @@ async def get_verification_history(
         VerificationResult.company_id == company_id
     ).order_by(desc(VerificationResult.created_at)).limit(limit).all()
     
-    return verification_results
+    return [VerificationResponse.from_orm(vr) for vr in verification_results]
 
 
 @router.get("/{company_id}/verification/status")
