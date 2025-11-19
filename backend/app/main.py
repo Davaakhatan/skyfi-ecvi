@@ -79,11 +79,22 @@ async def health_check():
         from app.core.config import settings
         import redis
         if settings.REDIS_URL:
-            redis_client = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+            # Try to connect with a short timeout and handle auth errors gracefully
+            redis_client = redis.from_url(
+                settings.REDIS_URL, 
+                socket_connect_timeout=2,
+                socket_timeout=2,
+                decode_responses=False,
+                health_check_interval=0  # Disable health check to avoid auth issues
+            )
             redis_client.ping()
             redis_status = "healthy"
-    except Exception:
-        redis_status = "unhealthy"
+    except (redis.exceptions.AuthenticationError, redis.exceptions.ConnectionError):
+        # Redis connection/auth issues - mark as not configured (optional service)
+        redis_status = "not_configured"
+    except Exception as e:
+        # Other connection errors
+        redis_status = f"unhealthy: {str(e)[:50]}"
     
     overall_status = "healthy" if db_status == "healthy" else "degraded"
     

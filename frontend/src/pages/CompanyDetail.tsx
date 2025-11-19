@@ -64,9 +64,18 @@ export default function CompanyDetail() {
       const response = await api.get(`/reports/company/${id}/report`, {
         params: { format: 'json' },
       })
-      setReportData(response.data)
-    } catch (error) {
-      console.error('Failed to fetch report data:', error)
+      // Ensure matches array exists (from our fix)
+      const data = response.data
+      if (!data.matches && data.discrepancies?.matches) {
+        data.matches = data.discrepancies.matches
+      }
+      setReportData(data)
+    } catch (error: any) {
+      // 404 is expected if no verification exists yet
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch report data:', error)
+      }
+      setReportData(null)
     } finally {
       setLoadingReport(false)
     }
@@ -75,10 +84,10 @@ export default function CompanyDetail() {
   const fetchReview = useCallback(async () => {
     if (!id) return
     try {
-      const response = await api.get<Review>(`/reviews/company/${id}/review`)
-      setReview(response.data)
+      const response = await api.get<Review | null>(`/reviews/company/${id}/review`)
+      setReview(response.data || null)
     } catch (error: any) {
-      // 404 is expected if no review exists
+      // Handle errors gracefully
       if (error.response?.status !== 404) {
         console.error('Failed to fetch review:', error)
       }
@@ -157,8 +166,13 @@ export default function CompanyDetail() {
       if (response.data.verification_status === 'COMPLETED') {
         fetchReportData()
       }
-    } catch (error) {
-      console.error('Failed to fetch verification:', error)
+    } catch (error: any) {
+      // 404 is expected if no verification exists yet
+      if (error.response?.status === 404) {
+        setVerification(null)
+      } else {
+        console.error('Failed to fetch verification:', error)
+      }
     } finally {
       setLoading(false)
     }
@@ -200,7 +214,7 @@ export default function CompanyDetail() {
     setVerifying(true)
     try {
       await api.post(`/companies/${id}/verify`, null, {
-        params: { async_mode: true, timeout_hours: 2.0 },
+        params: { async_mode: false, timeout_hours: 2.0 },
       })
       toast.success('Verification started! This may take a few minutes.')
       previousStatusRef.current = 'IN_PROGRESS'
@@ -234,15 +248,19 @@ export default function CompanyDetail() {
     }
   }, [])
   
-  // Stop polling when verification is completed or failed
+  // Stop polling when verification is completed or failed, and fetch report data
   useEffect(() => {
     if (verification && (verification.verification_status === 'COMPLETED' || verification.verification_status === 'FAILED')) {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
         pollingIntervalRef.current = null
       }
+      // Fetch report data when verification completes
+      if (verification.verification_status === 'COMPLETED') {
+        fetchReportData()
+      }
     }
-  }, [verification])
+  }, [verification, fetchReportData])
 
   const handleExport = async (format: 'json' | 'csv' | 'pdf' | 'html') => {
     if (!id) return

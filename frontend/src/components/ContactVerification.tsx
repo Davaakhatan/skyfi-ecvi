@@ -32,9 +32,13 @@ export default function ContactVerification({
         `/company/${companyId}/contact/verifications`,
         { params }
       )
-      setVerifications(response.data)
-    } catch (error) {
-      console.error('Failed to fetch contact verifications:', error)
+      setVerifications(response.data || [])
+    } catch (error: any) {
+      // Handle errors gracefully - 404 means no verifications exist yet
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch contact verifications:', error)
+      }
+      setVerifications([])
     } finally {
       setLoading(false)
     }

@@ -1,7 +1,8 @@
 """Review API endpoints"""
 
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from pydantic import BaseModel
@@ -134,14 +135,14 @@ async def create_review(
         )
 
 
-@router.get("/company/{company_id}/review", response_model=ReviewResponse)
+@router.get("/company/{company_id}/review", response_model=Optional[ReviewResponse])
 async def get_review(
     company_id: UUID,
     reviewer_id: Optional[UUID] = Query(None, description="Optional specific reviewer ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get review for a company"""
+    """Get review for a company. Returns null if no review exists."""
     company = db.query(Company).filter(Company.id == company_id).first()
     
     if not company:
@@ -160,10 +161,9 @@ async def get_review(
     review = query.order_by(desc(Review.reviewed_at)).first()
     
     if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No review found for this company"
-        )
+        # Return null JSON response with 200 status
+        # FastAPI will serialize None as null in JSON
+        return None
     
     # Performance optimization: Use eager loading if available, otherwise query
     if hasattr(review, 'reviewer') and review.reviewer:
